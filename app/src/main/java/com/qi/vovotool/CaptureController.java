@@ -77,6 +77,7 @@ public final class CaptureController {
                 dailyModifiers=c.getInt(c.getColumnIndexOrThrow("daily_meta"));
             }
             Bundle report=new Bundle();report.putIntArray("state",NativeBridge.state());
+            report.putIntArray("qrState",QrLoginBridge.state());
             report.putIntArray("uidState",NativeBridge.uidState());
             report.putIntArray("craftState",NativeBridge.craftState());
             int[] daily=NativeBridge.dailyState();report.putIntArray("dailyState",daily);

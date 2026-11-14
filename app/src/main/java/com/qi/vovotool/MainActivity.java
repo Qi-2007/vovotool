@@ -54,6 +54,7 @@ public final class MainActivity extends Activity {
         Switch capture=new Switch(this);capture.setText("镜头捕获指针，菜单自动释放");capture.setTextColor(Color.WHITE);capture.setChecked(prefs.getBoolean("capture",true));capture.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("capture",c).apply());layout.addView(capture);
         Switch hideUid=new Switch(this);hideUid.setText("隐藏 UID（右下角及派蒙菜单）");hideUid.setTextColor(Color.WHITE);hideUid.setChecked(prefs.getBoolean("hide_uid",true));hideUid.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("hide_uid",c).apply());layout.addView(hideUid);
         uidState=text(layout,"等待 UID 显示组件",14);
+        Switch qr=new Switch(this);qr.setText("登录弹窗显示扫码登录入口（实验）");qr.setTextColor(Color.WHITE);qr.setChecked(prefs.getBoolean("qr_login",true));qr.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("qr_login",c).apply());layout.addView(qr);
         Switch craft=new Switch(this);craft.setText("随身合成台");craft.setTextColor(Color.WHITE);craft.setChecked(prefs.getBoolean("portable_craft",true));craft.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("portable_craft",c).apply());layout.addView(craft);
         shortcutButton=button(layout,"设置快捷键 · "+craftShortcut(),v->recordShortcut(false));
         text(layout,"支持普通按键及 Ctrl、Alt、Shift 组合键。保存后约 1 秒在游戏中生效；在大世界可操作状态下使用。",14);
