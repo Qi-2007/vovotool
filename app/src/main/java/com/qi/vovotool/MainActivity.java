@@ -23,21 +23,25 @@ import android.widget.Toast;
 
 public final class MainActivity extends Activity {
     private final Handler handler=new Handler(Looper.getMainLooper());
-    private TextView state,rootState,uidState,craftState,dailyState;
+    private TextView state,rootState,uidState,craftState,dailyState,expeditionState;
     private EditText mouse,touchpad;
     private SharedPreferences prefs;
-    private Button shortcutButton,dailyShortcutButton;
-    private boolean recordingShortcut,recordingDaily;
+    private Button shortcutButton,dailyShortcutButton,expeditionShortcutButton;
+    private boolean recordingShortcut;
+    private String recordingFeature="craft";
     private int recordedRelease;
     private String craftShortcut(){return Shortcut.label(prefs.getInt("craft_key",Shortcut.DEFAULT_KEY),prefs.getInt("craft_meta",0));}
     private String dailyShortcut(){return Shortcut.label(prefs.getInt("daily_key",Shortcut.DEFAULT_DAILY_KEY),prefs.getInt("daily_meta",0));}
+    private String expeditionShortcut(){return Shortcut.label(prefs.getInt("expedition_key",Shortcut.DEFAULT_EXPEDITION_KEY),prefs.getInt("expedition_meta",0));}
+    private String featureShortcut(String feature){return Shortcut.label(prefs.getInt(feature+"_key",Shortcut.defaultKey(feature)),prefs.getInt(feature+"_meta",0));}
     private void resetShortcutButtons(){
         if(shortcutButton!=null)shortcutButton.setText("设置快捷键 · "+craftShortcut());
         if(dailyShortcutButton!=null)dailyShortcutButton.setText("设置快捷键 · "+dailyShortcut());
+        if(expeditionShortcutButton!=null)expeditionShortcutButton.setText("设置快捷键 · "+expeditionShortcut());
     }
-    private void recordShortcut(boolean daily){
-        resetShortcutButtons();recordingShortcut=true;recordingDaily=daily;
-        (daily?dailyShortcutButton:shortcutButton).setText("请按快捷键（Esc 取消）");
+    private void recordShortcut(String feature){
+        resetShortcutButtons();recordingShortcut=true;recordingFeature=feature;
+        ("expedition".equals(feature)?expeditionShortcutButton:"daily".equals(feature)?dailyShortcutButton:shortcutButton).setText("请按快捷键（Esc 取消）");
     }
     private int dp(int value){return (int)(getResources().getDisplayMetrics().density*value+.5f);}
     private TextView text(LinearLayout parent,String value,int size){TextView t=new TextView(this);t.setText(value);t.setTextSize(size);t.setTextColor(Color.rgb(225,232,241));t.setPadding(0,dp(8),0,dp(8));parent.addView(t);return t;}
@@ -56,13 +60,17 @@ public final class MainActivity extends Activity {
         uidState=text(layout,"等待 UID 显示组件",14);
         Switch qr=new Switch(this);qr.setText("登录弹窗显示扫码登录入口（实验）");qr.setTextColor(Color.WHITE);qr.setChecked(prefs.getBoolean("qr_login",true));qr.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("qr_login",c).apply());layout.addView(qr);
         Switch craft=new Switch(this);craft.setText("随身合成台");craft.setTextColor(Color.WHITE);craft.setChecked(prefs.getBoolean("portable_craft",true));craft.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("portable_craft",c).apply());layout.addView(craft);
-        shortcutButton=button(layout,"设置快捷键 · "+craftShortcut(),v->recordShortcut(false));
+        shortcutButton=button(layout,"设置快捷键 · "+craftShortcut(),v->recordShortcut("craft"));
         text(layout,"支持普通按键及 Ctrl、Alt、Shift 组合键。保存后约 1 秒在游戏中生效；在大世界可操作状态下使用。",14);
         craftState=text(layout,"随身合成台已就绪",14);
         Switch daily=new Switch(this);daily.setText("随身领取日委奖励");daily.setTextColor(Color.WHITE);daily.setChecked(prefs.getBoolean("portable_daily",true));daily.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("portable_daily",c).apply());layout.addView(daily);
-        dailyShortcutButton=button(layout,"设置快捷键 · "+dailyShortcut(),v->recordShortcut(true));
+        dailyShortcutButton=button(layout,"设置快捷键 · "+dailyShortcut(),v->recordShortcut("daily"));
         text(layout,"在大世界按快捷键领取已满足条件的日委奖励。若游戏弹出确认界面，请在游戏内确认；不会自动重试。",14);
         dailyState=text(layout,"日委领取等待游戏连接",14);
+        Switch expedition=new Switch(this);expedition.setText("随身探索派遣");expedition.setTextColor(Color.WHITE);expedition.setChecked(prefs.getBoolean("portable_expedition",true));expedition.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("portable_expedition",c).apply());layout.addView(expedition);
+        expeditionShortcutButton=button(layout,"设置快捷键 · "+expeditionShortcut(),v->recordShortcut("expedition"));
+        text(layout,"默认数字键 7，可录制普通按键或组合键。在大世界打开原生探索派遣界面，派遣与领取由你在游戏内操作。",14);
+        expeditionState=text(layout,"探索派遣等待游戏连接",14);
         mouse=number(layout,"镜头基础倍率（默认 0.02）",prefs.getFloat("mouse_scale",.02f));
         touchpad=number(layout,"触控板独立倍率（默认 0.25）",prefs.getFloat("touchpad_gain",.25f));
         button(layout,"保存速度",v->{try{
@@ -130,6 +138,18 @@ public final class MainActivity extends Activity {
                 default:dailyState.setText("日委领取已就绪 · "+dailyShortcut());
             }
         }else dailyState.setText("日委领取等待游戏连接");
+        int[] expedition=ConfigProvider.lastExpeditionState;
+        if(fresh&&expedition.length==6){
+            if(expedition[1]==0)expeditionState.setText("随身探索派遣未启用");
+            else switch(expedition[0]){
+                case 1:case 2:expeditionState.setText("正在打开探索派遣界面");break;
+                case 3:expeditionState.setText("上次已成功打开探索派遣界面");break;
+                case -1:expeditionState.setText("请回到大世界可操作状态后按 "+expeditionShortcut());break;
+                case -2:expeditionState.setText("游戏未接受探索派遣请求");break;
+                case -3:expeditionState.setText("等待探索派遣界面超时");break;
+                default:expeditionState.setText("探索派遣已就绪 · "+expeditionShortcut());
+            }
+        }else expeditionState.setText("探索派遣等待游戏连接");
         rootState.setText(RootProxyService.status);handler.postDelayed(this,1000);
     }};
     @Override public void onResume(){super.onResume();Settings.grantGameAccess(this);handler.post(refresh);}
@@ -142,14 +162,16 @@ public final class MainActivity extends Activity {
             recordingShortcut=false;recordedRelease=code;resetShortcutButtons();return true;
         }
         if(!Shortcut.supported(code)){Toast.makeText(this,"请换一个普通按键或组合键",Toast.LENGTH_SHORT).show();return true;}
-        String target=recordingDaily?"daily":"craft",other=recordingDaily?"craft":"daily";
-        int otherDefault=recordingDaily?Shortcut.DEFAULT_KEY:Shortcut.DEFAULT_DAILY_KEY,meta=Shortcut.modifiers(event);
-        if(code==prefs.getInt(other+"_key",otherDefault)&&meta==(prefs.getInt(other+"_meta",0)&Shortcut.META_MASK)){
-            recordedRelease=code;Toast.makeText(this,"与另一项功能的快捷键重复，请换一个",Toast.LENGTH_SHORT).show();return true;
+        String target=recordingFeature;int meta=Shortcut.modifiers(event);
+        for(String other:new String[]{"craft","daily","expedition"}){
+            if(other.equals(target))continue;
+            if(code==prefs.getInt(other+"_key",Shortcut.defaultKey(other))&&meta==(prefs.getInt(other+"_meta",0)&Shortcut.META_MASK)){
+                recordedRelease=code;Toast.makeText(this,"与另一项功能的快捷键重复，请换一个",Toast.LENGTH_SHORT).show();return true;
+            }
         }
         prefs.edit().putInt(target+"_key",code).putInt(target+"_meta",meta).apply();
         recordingShortcut=false;recordedRelease=code;resetShortcutButtons();
-        Toast.makeText(this,"已保存："+(recordingDaily?dailyShortcut():craftShortcut()),Toast.LENGTH_SHORT).show();return true;
+        Toast.makeText(this,"已保存："+featureShortcut(target),Toast.LENGTH_SHORT).show();return true;
     }
     @Override public void onPause(){
         recordingShortcut=false;recordedRelease=0;

@@ -111,6 +111,11 @@
       "name": "dailyRewardTaken",
       "rva": 236077856,
       "bytes": "00b04539c0035fd6008040f9c0035fd6"
+    },
+    {
+      "name": "openExpedition",
+      "rva": 138346180,
+      "bytes": "fe0f1df8f65701a9f44f02a9f5b906b0"
     }
   ]
 }

@@ -24,6 +24,8 @@ public final class CaptureController {
     private volatile boolean enabled=true, capture=true;
     private volatile int craftKey=Shortcut.DEFAULT_KEY,craftModifiers;
     private volatile int dailyKey=Shortcut.DEFAULT_DAILY_KEY,dailyModifiers;
+    private volatile int expeditionKey=Shortcut.DEFAULT_EXPEDITION_KEY,expeditionModifiers;
+    private int heldExpeditionKey;
     private int heldCraftKey,heldDailyKey;
     private int lastDailyNoticeRequests,lastDailyNoticeStatus;
     private long lastDailyNoticeAt;
@@ -75,11 +77,15 @@ public final class CaptureController {
                 NativeBridge.configureDaily(c.getInt(c.getColumnIndexOrThrow("portable_daily"))!=0);
                 dailyKey=c.getInt(c.getColumnIndexOrThrow("daily_key"));
                 dailyModifiers=c.getInt(c.getColumnIndexOrThrow("daily_meta"));
+                NativeBridge.configureExpedition(c.getInt(c.getColumnIndexOrThrow("portable_expedition"))!=0);
+                expeditionKey=c.getInt(c.getColumnIndexOrThrow("expedition_key"));
+                expeditionModifiers=c.getInt(c.getColumnIndexOrThrow("expedition_meta"));
             }
             Bundle report=new Bundle();report.putIntArray("state",NativeBridge.state());
             report.putIntArray("qrState",QrLoginBridge.state());
             report.putIntArray("uidState",NativeBridge.uidState());
             report.putIntArray("craftState",NativeBridge.craftState());
+            report.putIntArray("expeditionState",NativeBridge.expeditionState());
             int[] daily=NativeBridge.dailyState();report.putIntArray("dailyState",daily);
             showDailyNotice(daily);
             report.putIntArray("focusState",NativeBridge.focusState());
@@ -208,6 +214,10 @@ public final class CaptureController {
             if(action==KeyEvent.ACTION_UP){c.heldDailyKey=0;NativeBridge.dailyKey(false);}
             return true;
         }
+        if(c.heldExpeditionKey!=0 && code==c.heldExpeditionKey){
+            if(action==KeyEvent.ACTION_UP){c.heldExpeditionKey=0;NativeBridge.expeditionKey(false);}
+            return true;
+        }
         View focus=activity.getCurrentFocus();
         if(focus!=null && focus.onCheckIsTextEditor())return false;
         if(action==KeyEvent.ACTION_DOWN && code==c.craftKey && Shortcut.modifiers(event)==c.craftModifiers){
@@ -217,6 +227,10 @@ public final class CaptureController {
         if(action==KeyEvent.ACTION_DOWN && code==c.dailyKey && Shortcut.modifiers(event)==c.dailyModifiers){
             boolean handled=NativeBridge.dailyKey(true);
             if(handled){c.heldDailyKey=code;return true;}
+        }
+        if(action==KeyEvent.ACTION_DOWN && code==c.expeditionKey && Shortcut.modifiers(event)==c.expeditionModifiers){
+            boolean handled=NativeBridge.expeditionKey(true);
+            if(handled){c.heldExpeditionKey=code;return true;}
         }
         if(code!=KeyEvent.KEYCODE_ENTER && code!=KeyEvent.KEYCODE_NUMPAD_ENTER && code!=KeyEvent.KEYCODE_ESCAPE)return false;
         boolean handled=NativeBridge.key(code,action==KeyEvent.ACTION_DOWN);

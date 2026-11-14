@@ -5,6 +5,8 @@ import android.view.KeyEvent;
 final class Shortcut {
     static final int DEFAULT_KEY=KeyEvent.KEYCODE_F8;
     static final int DEFAULT_DAILY_KEY=KeyEvent.KEYCODE_F9;
+    static final int DEFAULT_EXPEDITION_KEY=KeyEvent.KEYCODE_7;
+    static int defaultKey(String feature){return "daily".equals(feature)?DEFAULT_DAILY_KEY:"expedition".equals(feature)?DEFAULT_EXPEDITION_KEY:DEFAULT_KEY;}
     static final int META_MASK=KeyEvent.META_CTRL_ON|KeyEvent.META_ALT_ON|KeyEvent.META_SHIFT_ON|KeyEvent.META_META_ON;
     private Shortcut() {}
     static int modifiers(KeyEvent event){return KeyEvent.normalizeMetaState(event.getMetaState())&META_MASK;}

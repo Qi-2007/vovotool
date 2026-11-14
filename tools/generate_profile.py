@@ -13,6 +13,7 @@ targets.update({'uidTextSetter':0xcc4f230,'textPopulateMesh':0xcc4fbe4,'objectNa
 targets['switchInputMode']=0xe1cb1fc
 targets.update({'componentTransform':0x80e5930,'componentGameObject':0x80e5b50,'transformParent':0x8fffc18,'objectSetActive':0x95779f8,'objectActiveSelf':0x95779fc})
 targets.update({'openPageByName':0xfdba624,'dailyClaimCallback':0xe1293b8,'dailyRewardTaken':0xe124320})
+targets['openExpedition']=0x83efec4
 rows=[]
 with library.open('rb') as f:
  for name,rva in targets.items():
