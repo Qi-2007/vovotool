@@ -71,6 +71,31 @@
       "name": "switchInputMode",
       "rva": 236761596,
       "bytes": "ffc302d1fe3b00f9f85f08a9f65709a9"
+    },
+    {
+      "name": "componentTransform",
+      "rva": 135158064,
+      "bytes": "fe0f1ef8f44f01a9201000b4080840f9"
+    },
+    {
+      "name": "componentGameObject",
+      "rva": 135158608,
+      "bytes": "e9802617e8802617c00000b4080840f9"
+    },
+    {
+      "name": "transformParent",
+      "rva": 150993944,
+      "bytes": "6496ea163a5aea16ff4302d1fe4f08a9"
+    },
+    {
+      "name": "objectSetActive",
+      "rva": 156727800,
+      "bytes": "1540d4161d40d4160940d4161b40d416"
+    },
+    {
+      "name": "objectActiveSelf",
+      "rva": 156727804,
+      "bytes": "1d40d4160940d4161b40d4160740d416"
     }
   ]
 }

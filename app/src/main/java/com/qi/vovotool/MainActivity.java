@@ -38,7 +38,7 @@ public final class MainActivity extends Activity {
         state=text(layout,"等待游戏连接",17);
         Switch enabled=new Switch(this);enabled.setText("启用 PC 界面与原生键鼠");enabled.setTextColor(Color.WHITE);enabled.setChecked(prefs.getBoolean("enabled",true));enabled.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("enabled",c).apply());layout.addView(enabled);
         Switch capture=new Switch(this);capture.setText("镜头捕获指针，菜单自动释放");capture.setTextColor(Color.WHITE);capture.setChecked(prefs.getBoolean("capture",true));capture.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("capture",c).apply());layout.addView(capture);
-        Switch hideUid=new Switch(this);hideUid.setText("隐藏右下角 UID");hideUid.setTextColor(Color.WHITE);hideUid.setChecked(prefs.getBoolean("hide_uid",true));hideUid.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("hide_uid",c).apply());layout.addView(hideUid);
+        Switch hideUid=new Switch(this);hideUid.setText("隐藏 UID（右下角及派蒙菜单）");hideUid.setTextColor(Color.WHITE);hideUid.setChecked(prefs.getBoolean("hide_uid",true));hideUid.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("hide_uid",c).apply());layout.addView(hideUid);
         uidState=text(layout,"等待 UID 显示组件",14);
         mouse=number(layout,"镜头基础倍率（默认 0.02）",prefs.getFloat("mouse_scale",.02f));
         touchpad=number(layout,"触控板独立倍率（默认 0.25）",prefs.getFloat("touchpad_gain",.25f));
@@ -73,7 +73,7 @@ public final class MainActivity extends Activity {
         int[] u=ConfigProvider.lastUidState;
         if(fresh&&u.length==5){
             switch(u[0]){
-                case 2:uidState.setText("右下角 UID 已隐藏");break;
+                case 2:uidState.setText("已发现的 UID 文字已隐藏");break;
                 case 3:uidState.setText("UID 显示已恢复");break;
                 case -2:uidState.setText("UID 文字校验失败，本次停止调整");break;
                 case 1:uidState.setText("等待 UID 显示组件");break;

@@ -11,6 +11,7 @@ if not library.exists():
 targets={'tick':0xe1e63d8,'setDevice':0xe1e2d04,'setController':0xd104b18,'selectMaps':0xe25e560,'mouseUpdate':0xd12b960,'keyboardUpdate':0xd38b7b0,'escapeRoutePredicate':0xe1d414c,'escapeRouteCall':0xe2df338,'escapeHandler':0xe30ffa8}
 targets.update({'uidTextSetter':0xcc4f230,'textPopulateMesh':0xcc4fbe4,'objectName':0x8ffe494,'stringFromUtf16':0x8ed2e94})
 targets['switchInputMode']=0xe1cb1fc
+targets.update({'componentTransform':0x80e5930,'componentGameObject':0x80e5b50,'transformParent':0x8fffc18,'objectSetActive':0x95779f8,'objectActiveSelf':0x95779fc})
 rows=[]
 with library.open('rb') as f:
  for name,rva in targets.items():
