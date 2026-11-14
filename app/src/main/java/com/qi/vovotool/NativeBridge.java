@@ -24,6 +24,9 @@ public final class NativeBridge {
     public static native void configureCraft(boolean enabled);
     public static native boolean craftKey(boolean down);
     public static native int[] craftState();
+    public static native void configureDaily(boolean enabled);
+    public static native boolean dailyKey(boolean down);
+    public static native int[] dailyState();
     public static native void configureFocusGuard(boolean active);
     public static native int[] focusState();
 }

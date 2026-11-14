@@ -101,6 +101,16 @@
       "name": "openPageByName",
       "rva": 266053156,
       "bytes": "ff4305d1fd7b0fa9fc6f10a9fa6711a9"
+    },
+    {
+      "name": "dailyClaimCallback",
+      "rva": 236098488,
+      "bytes": "fe57bea9f44f01a9f3cf03f0688e6239"
+    },
+    {
+      "name": "dailyRewardTaken",
+      "rva": 236077856,
+      "bytes": "00b04539c0035fd6008040f9c0035fd6"
     }
   ]
 }

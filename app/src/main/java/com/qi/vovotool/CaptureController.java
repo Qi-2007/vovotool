@@ -23,7 +23,10 @@ public final class CaptureController {
     private boolean stopped;
     private volatile boolean enabled=true, capture=true;
     private volatile int craftKey=Shortcut.DEFAULT_KEY,craftModifiers;
-    private int heldCraftKey;
+    private volatile int dailyKey=Shortcut.DEFAULT_DAILY_KEY,dailyModifiers;
+    private int heldCraftKey,heldDailyKey;
+    private int lastDailyNoticeRequests,lastDailyNoticeStatus;
+    private long lastDailyNoticeAt;
     private volatile boolean focusGuard=true;
     private boolean windowFocused,focusTouchArmed,swallowTouch;
     private long focusGainedAt;
@@ -69,16 +72,39 @@ public final class CaptureController {
                 NativeBridge.configureCraft(c.getInt(c.getColumnIndexOrThrow("portable_craft"))!=0);
                 craftKey=c.getInt(c.getColumnIndexOrThrow("craft_key"));
                 craftModifiers=c.getInt(c.getColumnIndexOrThrow("craft_meta"));
+                NativeBridge.configureDaily(c.getInt(c.getColumnIndexOrThrow("portable_daily"))!=0);
+                dailyKey=c.getInt(c.getColumnIndexOrThrow("daily_key"));
+                dailyModifiers=c.getInt(c.getColumnIndexOrThrow("daily_meta"));
             }
             Bundle report=new Bundle();report.putIntArray("state",NativeBridge.state());
             report.putIntArray("uidState",NativeBridge.uidState());
             report.putIntArray("craftState",NativeBridge.craftState());
+            int[] daily=NativeBridge.dailyState();report.putIntArray("dailyState",daily);
+            showDailyNotice(daily);
             report.putIntArray("focusState",NativeBridge.focusState());
             report.putIntArray("windowState",new int[]{focusLosses,focusGains,touchDowns,swallowedGestures,swallowedEvents,windowFocused?1:0,swallowTouch?1:0,focusGuard?1:0,lastTouchSource,lastTouchAction});
             activity.getContentResolver().call(Settings.URI,"report",null,report);
         } catch(Exception e) { Log.w("vovotool","Module configuration unavailable",e); }
         background.postDelayed(this,1000);
     }};
+    private void showDailyNotice(int[] value){
+        if(value.length!=6)return;
+        boolean changed=value[2]!=lastDailyNoticeRequests||value[0]!=lastDailyNoticeStatus;
+        lastDailyNoticeRequests=value[2];lastDailyNoticeStatus=value[0];
+        if(!changed||value[2]==0)return;
+        String message;
+        switch(value[0]){
+            case 4:message="日委奖励已领取，无需重复提交";break;
+            case -1:message="请回到大世界可操作状态后领取日委";break;
+            case -2:message="日委模块尚未就绪，本次未执行";break;
+            case -3:message="未确认领取结果，请查看游戏提示；未自动重试";break;
+            case -4:message="操作过快，请稍后再试";break;
+            default:return;
+        }
+        long now=SystemClock.elapsedRealtime();if(now-lastDailyNoticeAt<1500)return;
+        lastDailyNoticeAt=now;
+        main.post(()->{if(!stopped&&activity.hasWindowFocus())android.widget.Toast.makeText(activity,message,android.widget.Toast.LENGTH_SHORT).show();});
+    }
     private final Runnable captureLoop=new Runnable(){public void run(){
         if(stopped)return;
         try {
@@ -107,7 +133,7 @@ public final class CaptureController {
             focusGains++;focusGainedAt=SystemClock.uptimeMillis();
             final long gained=focusGainedAt;
             main.postDelayed(()->{if(windowFocused&&focusGainedAt==gained&&!swallowTouch)focusTouchArmed=false;},180);
-        }else {focusLosses++;focusTouchArmed=true;heldCraftKey=0;}
+        }else {focusLosses++;focusTouchArmed=true;heldCraftKey=heldDailyKey=0;}
         NativeBridge.setCaptureState(false,focused);
         Log.i("vovotool","Game window focus="+focused);
     }
@@ -177,11 +203,19 @@ public final class CaptureController {
             if(action==KeyEvent.ACTION_UP){c.heldCraftKey=0;NativeBridge.craftKey(false);}
             return true;
         }
+        if(c.heldDailyKey!=0 && code==c.heldDailyKey){
+            if(action==KeyEvent.ACTION_UP){c.heldDailyKey=0;NativeBridge.dailyKey(false);}
+            return true;
+        }
         View focus=activity.getCurrentFocus();
         if(focus!=null && focus.onCheckIsTextEditor())return false;
         if(action==KeyEvent.ACTION_DOWN && code==c.craftKey && Shortcut.modifiers(event)==c.craftModifiers){
             boolean handled=NativeBridge.craftKey(true);
             if(handled){c.heldCraftKey=code;return true;}
+        }
+        if(action==KeyEvent.ACTION_DOWN && code==c.dailyKey && Shortcut.modifiers(event)==c.dailyModifiers){
+            boolean handled=NativeBridge.dailyKey(true);
+            if(handled){c.heldDailyKey=code;return true;}
         }
         if(code!=KeyEvent.KEYCODE_ENTER && code!=KeyEvent.KEYCODE_NUMPAD_ENTER && code!=KeyEvent.KEYCODE_ESCAPE)return false;
         boolean handled=NativeBridge.key(code,action==KeyEvent.ACTION_DOWN);
