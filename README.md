@@ -1,0 +1,131 @@
+# 沃沃头（vovotool）
+
+当前版本：**0.1.7**。适配国服 `com.miHoYo.Yuanshen`，版本 `7.2.0_48751704_49008628`，ARM64。
+
+应用名称：**沃沃头**；项目名：`vovotool`；包名：`com.qi.vovotool`。源码仓库目录为 `D:\code\gi\vovotool`。
+
+0.1.6 的键鼠、UID 隐藏与焦点保护已在 Lenovo TB710FU / Android 15 / LSPosed 2.2.1（7941）实机验证，并获用户确认正常。0.1.7 更新应用标识，构建与包结构单独验证；新包尚未进行设备迁移测试。
+
+## 使用
+
+1. 安装 `dist/vovotool-0.1.7-arm64.apk`。
+2. 在 LSPosed 启用模块，作用域只勾选「原神」。
+3. 打开「沃沃头」模块应用一次，然后启动/重新启动原神。安装或更新模块后，已运行的游戏需要重新启动才能加载新版本。
+4. 外接鼠标不需要额外 root 辅助程序。使用本机 Lenovo 键盘套触控板时，点击「启动触控板兼容」，向该模块应用授予 root 权限，再进入游戏。
+
+主开关控制原生键鼠及 PC UI。镜头操作时自动捕获指针，地图/菜单显示指针时自动释放。镜头基础倍率默认 **0.02**；触控板独立转换倍率默认 **0.25**，可在模块页面分别调整。
+
+「隐藏右下角 UID」可在游戏运行中切换，约 1 秒生效；关闭时恢复原显示文字。关闭模块主开关也会恢复 UID 显示。该选项只针对右下角 HUD 的 UID 文字，个人资料页 UID 不在此次范围内。
+
+停止触控板辅助可点击「停止触控板兼容」。关闭模块主开关会在游戏线程恢复启动时记录的输入基线；完整重载界面可重新启动游戏。关闭 LSPosed 模块并重新启动游戏即可停止加载原生 hook。
+
+模块不修改 APK、游戏资源、系统分区、boot 或开机镜像。root 辅助程序通过现有 `/dev/uinput` 创建临时相对鼠标，退出时销毁，不安装内核驱动。需要已正常工作的 LSPosed；本工程不安装或改动 LSPosed 框架。
+
+## 0.1.7：沃沃头应用标识
+
+应用名称、Java 包目录、JNI 导出、LSPosed Java 入口、配置 Provider authority、通知、日志及 APK 文件名已更新。输出为 `dist/vovotool-0.1.7-arm64.apk`，配置地址为 `content://com.qi.vovotool.config/state`。
+
+包名变化后，安卓会将其作为独立应用安装。迁移时，先在 LSPosed 停用旧包 `io.github.giinput` 的模块，再启用沃沃头并勾选原神作用域，打开沃沃头一次后重新启动游戏；使用触控板兼容时为新应用授予 root 权限。原应用的配置及权限不会自动转移，所需倍率可在新应用中重新设置。现有设备上的旧包未因源码更名而被卸载或改动。
+
+Git 只跟踪源码、构建脚本、版本 profile 与说明；构建产物、签名私钥和本地依赖缓存被忽略。
+
+## 0.1.6：触屏点回窗口时的焦点保护
+
+修复 PC 界面下从其他窗口用手指直接点回游戏内容时出现重载、摄像机定住的问题。失焦后重新激活窗口的首个触屏手势仅用于获得焦点，完整消耗该手势的 Down / Move / Up / Cancel，避免把用于激活窗口的单击送进游戏。鼠标、触控板和后续普通触屏事件继续使用原来的处理。
+
+同时在模块已建立 PC 界面及键鼠模式后，阻止自动切回其他输入/UI 模式；获得焦点后的短暂恢复阶段也避免重复进入完整输入/UI 重建。关闭模块主开关后的原生输入恢复仍允许执行。新挂接的模式切换函数纳入游戏代码指纹检查。
+
+2026-11-14 用户验证“触屏点回已正常，鼠标也正常”。同一游戏进程的记录显示：处理了 9 个激活窗口触屏手势，共 18 个事件；PC 输入仅应用一次，未发生额外的完整输入模式切换。记录见 `build/verified-focus-0.1.6.json`。这证明首个触屏手势保护在实测流程中生效；本次没有观察到原生模式切换入口被调用，因此不将该入口认定为已证明的底层根因。详见 `docs/touch-focus-guard.md`。
+
+## 0.1.5：隐藏右下角 UID
+
+参考 Fufu 的 `/BetaWatermarkCanvas(Clone)/Panel/TxtUID` 目标和本地 gimmd `src/windows/uid_text.h` 的可恢复文字替换方式，适配安卓 `UnityEngine.UI.Text` 原生接口。
+
+在 `Text.set_text` 和 `Text.OnPopulateMesh` 中发现目标：须为有效的 `Text` 实例、内容符合 UID 文本特征，且 Unity 对象名恰为 `TxtUID`。缓存该组件的原生对象身份及原文字；隐藏时通过原 setter 清空文本，恢复时通过该版本的 UTF-16 字符串构造函数还原。文字改动执行后读取 `m_Text` 校验。场景中对象失效或被替换时，清除旧缓存并重新发现。原文字只保存在内存，不写入日志或诊断。
+
+新增接口都纳入当前版本的 16 字节指纹检查，不修改账号 UID、游戏文件或分区。保留现有键鼠、触控板与原生 Esc 分发逻辑。
+
+诊断新增独立数组 `uidState=[状态,请求隐藏,已应用,发现次数,文字写入次数]`，不改变原键鼠 `state` 数组。状态 0 为关闭、1 为等待目标、2 为已隐藏、3 为已恢复、-2 为文字校验失败并停止调整。
+
+2026-11-14 已安装 0.1.5，在 LSPosed 游戏进程捕获到目标并完成隐藏/恢复回读校验。用户确认“我已测试正常，无需再切换”后结束开关测试，保留用户设置。记录见 `build/verified-uid-0.1.5.json`。
+
+## 0.1.4：接入原生 Esc / Back 分发
+
+0.1.3 将场景 Esc 接到派蒙按钮，无法覆盖秘境退出，现已移除该专用调用。0.1.4 将 Esc 正常送入 Rewired，沿原来的界面栈和 `HandleInputActionEvent` 分发。主页面收到 Cancel（动作 38）后，安卓键鼠模式原本进入 SDK 退出框；此处的另一条分支进入游戏自身的共享 Back 处理函数。
+
+模块仅对这一调用点的模式判断作适配：须同时满足模块启用、原生输入已应用、游戏窗口有焦点、键鼠模式以及调用者地址匹配，才选择游戏内 Back 分支。判断函数的其他调用者仍执行原函数，没有全局伪装平台或控制器模式。具体打开什么界面继续由游戏判断，不添加秘境类型或场景列表。
+
+函数及调用点均纳入当前版本的代码指纹检查。诊断 `state` 第 10 项统计进入原生 Esc / Back 分支的次数。更多分析见 `docs/native-escape-routing.md`。
+
+2026-11-14 已安装 0.1.4，并在新的 LSPosed 游戏进程中完成验证；原生 Esc 分支计数增长，用户在秘境验证后确认“经过验证功能正常”。记录见 `build/verified-native-escape-0.1.4.json`。其他场景未逐一穷尽测试。
+
+## 0.1.2 / 0.1.3：Enter 与 Esc（历史）
+
+0.1.2 在主活动的键盘事件入口接收 Enter、数字小键盘 Enter 和 Esc，并在 Rewired 键盘更新后补入对应状态。使用当前键盘的键值索引表转换，不假定按钮数组索引等于键码；短按至少保留一次更新，失焦清除按键。原生文本编辑控件保留原有事件处理。键盘布局将物理 Esc（扫描码 1）标成 Android Back 时也作兼容，系统导航返回不改动。用户已确认 Enter 恢复正常。
+
+该版本安卓游戏的场景 Esc 仍走退出分支。0.1.3 对场景中的 Esc 单独处理：在游戏线程查找当前主页面及其派蒙头像按钮，调用原生 `Button.Press()`，沿已注册的原生菜单回调打开派蒙菜单；不模拟屏幕坐标。菜单中继续提供 Rewired Escape 状态。按住 Esc 不重复打开菜单，也不会在菜单打开后立即再次触发关闭。只在模块启用、游戏窗口有焦点时处理。
+
+诊断 `state` 第 8、9 项分别为特殊键事件数和键盘补偿更新数。该修复不更改鼠标或触控板倍率。
+
+2026-11-14 已在同一设备安装 0.1.3 并重新启动原神。用户先确认 Enter 正常，再确认 Esc 修复后“测试已正常”。验证记录位于 `build/verified-keyboard-0.1.3.json`。最终版本由 LSPosed 独立加载；期间临时的 Frida 原生只读诊断未使用 Java bridge，已结束。
+
+## 0.1.1 修复：一直显示“等待原神连接”
+
+0.1.0 的 LSPosed 入口实际已加载，但 Android 的跨应用可见性过滤使原神无法发现模块的配置 Provider。日志为：
+
+```text
+Failed to find provider info for io.github.giinput.config
+Module configuration unavailable: IllegalArgumentException
+```
+
+0.1.1 允许授予配置 URI 读取权限，并在模块页面及 Provider 初始化时向原神授予该 URI 的读取权限，使模块对原神可见。Provider 仍按调用 UID 对应包名检查，只接受模块自身和原神访问配置，不开放给其他普通应用。
+
+实机更新后，诊断状态为 `stage=2`、输入模式为 2，游戏 tick、鼠标处理帧和相对位移事件计数持续增长。Android 确认原神窗口已捕获指针；root 触控板辅助程序已就绪。用户确认 PC UI、键盘、鼠标/触控板正常。
+
+## 结构
+
+- `XposedEntry.java`：仅在原神主进程加载，检查版本，安装 Java 捕获事件和活动生命周期 hook。
+- `CaptureController.java`：接收捕获相对事件，根据游戏光标状态和窗口焦点请求/释放 Android 指针捕获，处理触屏激活窗口的首个手势。
+- `ConfigProvider.java`：配置与游戏状态回报，针对原神 UID 授权。
+- `module.cpp`：通过 LSPosed Native Hook API 挂接 UI tick、Rewired 键盘/鼠标更新及单个 Esc 分支判断；在游戏线程启用控制器并选择键鼠规则集。
+- `uid_visibility.hpp`：发现并验证右下角 UID Text 组件，保存原文字，处理隐藏与恢复。
+- `touchpad_proxy.cpp`：独立 root 程序，查找指定 Lenovo 触控板，转换单指位移、轻点及物理按钮为临时相对鼠标输入。它不独占原触控板；菜单中不转发。
+- `RootProxyService.java`：前台服务启动/管理 root 辅助程序；通过本地回环 UDP 和随机 128 位令牌接收游戏心跳。无公网服务。
+- `profile.hpp` / `profile.json`：该版本 ARM64 函数偏移与 16 字节指纹。运行时类按名称校验，没有固定 PID 或堆对象地址。
+
+没有采用早期 Frida 实验中导致冻结的完整 UI setter 路径。代码指纹不匹配时不安装 hook；游戏更新后需要重新分析与适配。游戏内原生灵敏度设置页面仍未开放，使用模块页面调节。
+
+触控板兼容程序目前仅针对实测 Lenovo 型号，未专门实现捕获中的多指滚轮手势。辅助程序无有效心跳 1 秒停止转发，5 秒退出；未连接游戏时启动等待最多 60 秒，服务可在游戏重新查询时再次启动。
+
+## 构建
+
+工具链全部位于 `D:\code\gi\toolchain`，缓存位于 `D:\code\gi\downloads`，不需要全局安装 Gradle。使用 Python 3.11 或更高版本：
+
+```powershell
+py D:\code\gi\vovotool\tools\setup_toolchain.py
+py D:\code\gi\vovotool\tools\build.py
+```
+
+`setup_toolchain.py` 使用 Android 官方仓库的 build-tools 35.0.0、平台 35、NDK r27c，并验证官方元数据中的 SHA-1。JDK 为便携 Corretto 21。Xposed API 82 JAR 为仅编译依赖，来自 Maven 镜像，校验 SHA-256，未打包进模块 APK。
+
+`generate_profile.py` 在存在相邻 `android-input-research/libyuanshen.so` 时从中读取函数指纹；不存在时使用仓库内的 `profile.hpp` 与 `profile.json`。原始游戏库不随工程或 APK 分发。重新适配版本时应提供对应二进制并核对 profile。
+
+构建使用 NDK clang++、javac、D8、aapt2、zipalign 和 apksigner。原生段及 APK 按 16KB 页对齐；输出 APK 经 v2/v3 签名校验。当前为本地开发签名，私钥在 `signing/`，该目录不纳入版本控制。
+
+root 调试状态（不会返回 UDP 令牌）：
+
+```powershell
+adb shell content call --uri content://com.qi.vovotool.config/state --method diagnostics
+```
+
+不要在已启用 LSPosed 的原神进程上同时使用早期 Frida Java 诊断脚本；本次检测发现其与当前 ART/LSPosed 组合存在冲突，后续验证仅使用模块诊断接口。
+
+## 参考
+
+- [LSPosed Native Hook API](https://github.com/LSPosed/LSPosed/wiki/Native-Hook)
+- [Android 自动应用可见性：URI 权限](https://developer.android.com/training/package-visibility/automatic)
+- [Android View 指针捕获](https://developer.android.com/reference/android/view/View#requestPointerCapture())
+- [Linux uinput 接口](https://docs.kernel.org/input/uinput.html)
+- [Fufu UID 隐藏参考](https://github.com/FufuLauncher/FufuLauncher.UnlockerIsland/blob/ccc78e452e8534460d74fbc47e3ed1203d77da4c/FufuLauncher.UnlockerIsland/HideUI/HideUI.cpp)
+- 本地 gimmd 参考：`E:\code\gimmd\src\windows\uid_text.h`。
+- [FufuLauncher.UnlockerIsland 切换入口参考](https://github.com/FufuLauncher/FufuLauncher.UnlockerIsland/blob/ccc78e452e8534460d74fbc47e3ed1203d77da4c/Core/Hooks.cpp)

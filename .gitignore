@@ -1,0 +1,7 @@
+/build/
+/dist/
+/signing/
+/app/libs/*.jar
+__pycache__/
+*.pyc
+local.properties

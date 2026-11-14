@@ -1,0 +1,76 @@
+{
+  "version": "7.2.0_48751704_49008628",
+  "arch": "arm64-v8a",
+  "functions": [
+    {
+      "name": "tick",
+      "rva": 236872664,
+      "bytes": "fe67bca9f85f01a9f65702a9f44f03a9"
+    },
+    {
+      "name": "setDevice",
+      "rva": 236858628,
+      "bytes": "ff8301d1fe2300f9f44f05a9e8ae03b0"
+    },
+    {
+      "name": "setController",
+      "rva": 219171608,
+      "bytes": "080040f903095da960001fd6fe0f1ef8"
+    },
+    {
+      "name": "selectMaps",
+      "rva": 237364576,
+      "bytes": "fe0f1ef8f44f01a928ac03d0f403012a"
+    },
+    {
+      "name": "mouseUpdate",
+      "rva": 219330912,
+      "bytes": "fe57bea9f44f01a9d43704b0000c40f9"
+    },
+    {
+      "name": "keyboardUpdate",
+      "rva": 221820848,
+      "bytes": "fe4fbfa9084040391f05007101010054"
+    },
+    {
+      "name": "escapeRoutePredicate",
+      "rva": 236798284,
+      "bytes": "fe4fbfa968ae03b0e10300aa08c56839"
+    },
+    {
+      "name": "escapeRouteCall",
+      "rva": 237892408,
+      "bytes": "85d3fb9740650036e00313aa19c30094"
+    },
+    {
+      "name": "escapeHandler",
+      "rva": 238092200,
+      "bytes": "fe5fbda9f65701a9f44f02a9d4bf03b0"
+    },
+    {
+      "name": "uidTextSetter",
+      "rva": 214233648,
+      "bytes": "fe0f1ef8f44f01a9a10300b4291040b9"
+    },
+    {
+      "name": "textPopulateMesh",
+      "rva": 214236132,
+      "bytes": "ff4306d1e923126dfd9b00f9fe6f14a9"
+    },
+    {
+      "name": "objectName",
+      "rva": 150987924,
+      "bytes": "ff8302d1fe3b00f9f65708a9f44f09a9"
+    },
+    {
+      "name": "stringFromUtf16",
+      "rva": 149761684,
+      "bytes": "fe5fbda9f65701a9f44f02a9946106b0"
+    },
+    {
+      "name": "switchInputMode",
+      "rva": 236761596,
+      "bytes": "ffc302d1fe3b00f9f85f08a9f65709a9"
+    }
+  ]
+}
