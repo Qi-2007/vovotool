@@ -21,6 +21,9 @@ public final class NativeBridge {
     public static native boolean key(int code, boolean down);
     public static native void configureUid(boolean hidden);
     public static native int[] uidState();
+    public static native void configureCraft(boolean enabled);
+    public static native boolean craftKey(boolean down);
+    public static native int[] craftState();
     public static native void configureFocusGuard(boolean active);
     public static native int[] focusState();
 }

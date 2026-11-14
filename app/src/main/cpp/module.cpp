@@ -65,6 +65,7 @@ bool classIs(P object,const char* name){
     return length<sizeof(actual)&&readMemory(text,actual,length)&&std::memcmp(actual,name,length)==0;
 }
 #include "uid_visibility.hpp"
+#include "crafting.hpp"
 bool ready(P b){
     if((read<uint8_t>(b+0x158099bc)&1)==0)return false;
     P root=read<P>(b+profile::singletonRoot);
@@ -150,6 +151,7 @@ void tickHook(void* self,void* method){
             else restore(b);
             cursor=read<int>(manager+0x340,1000);inputMode=read<int>(input+0x1a4,-1);
             updateUidVisibility(b);
+            updateCrafting(b);
             heartbeat();
         }
     }catch(...){enabled=false;stage=-3;log("Native input call failed; module disabled for this process");}
@@ -244,7 +246,7 @@ extern "C" JNIEXPORT jintArray JNICALL Java_com_qi_vovotool_NativeBridge_state(J
 }
 extern "C" JNIEXPORT void JNICALL Java_com_qi_vovotool_NativeBridge_setCaptureState(JNIEnv*,jclass,jboolean cap,jboolean focus){
     if(windowFocused.exchange(focus)!=static_cast<bool>(focus)&&focus)focusWarmUntil=nowMs()+400;
-    if(!focus){std::lock_guard<std::mutex> guard(keyMutex);heldKeys=pendingKeys=0;}
+    if(!focus){std::lock_guard<std::mutex> guard(keyMutex);heldKeys=pendingKeys=0;craftKeyHeld=false;}
     if(captured.exchange(cap)!=static_cast<bool>(cap)){
         std::lock_guard<std::mutex> guard(inputMutex);relativeX=relativeY=scrollX=scrollY=0;buttons=pendingButtons=0;suppressUntil=nowMs()+150;
     }
@@ -265,6 +267,17 @@ extern "C" JNIEXPORT jboolean JNICALL Java_com_qi_vovotool_NativeBridge_key(JNIE
     return true;
 }
 extern "C" JNIEXPORT void JNICALL Java_com_qi_vovotool_NativeBridge_configureUid(JNIEnv*,jclass,jboolean hide){uidRequested=hide;}
+extern "C" JNIEXPORT void JNICALL Java_com_qi_vovotool_NativeBridge_configureCraft(JNIEnv*,jclass,jboolean active){craftEnabled=active;}
+extern "C" JNIEXPORT jboolean JNICALL Java_com_qi_vovotool_NativeBridge_craftKey(JNIEnv*,jclass,jboolean down){
+    if(!down){craftKeyHeld=false;return true;}
+    if(!enabled||!craftEnabled||stage!=2||!windowFocused)return false;
+    if(!craftKeyHeld.exchange(true))requestCrafting();
+    return true;
+}
+extern "C" JNIEXPORT jintArray JNICALL Java_com_qi_vovotool_NativeBridge_craftState(JNIEnv* env,jclass){
+    jint values[]={craftStatus.load(),craftEnabled.load()?1:0,static_cast<jint>(craftRequests.load()),static_cast<jint>(craftDispatches.load()),static_cast<jint>(craftOpened.load()),static_cast<jint>(craftRejected.load())};
+    jintArray result=env->NewIntArray(6);env->SetIntArrayRegion(result,0,6,values);return result;
+}
 extern "C" JNIEXPORT jintArray JNICALL Java_com_qi_vovotool_NativeBridge_uidState(JNIEnv* env,jclass){
     jint values[]={uidStatus.load(),uidRequested.load()?1:0,uidApplied.load()?1:0,static_cast<jint>(uidDiscoveries.load()),static_cast<jint>(uidWrites.load())};
     jintArray result=env->NewIntArray(5);env->SetIntArrayRegion(result,0,5,values);return result;

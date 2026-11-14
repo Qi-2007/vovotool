@@ -96,6 +96,11 @@
       "name": "objectActiveSelf",
       "rva": 156727804,
       "bytes": "1d40d4160940d4161b40d4160740d416"
+    },
+    {
+      "name": "openPageByName",
+      "rva": 266053156,
+      "bytes": "ff4305d1fd7b0fa9fc6f10a9fa6711a9"
     }
   ]
 }

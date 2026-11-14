@@ -14,6 +14,7 @@ public final class ConfigProvider extends ContentProvider {
     static volatile long lastReport;
     static volatile int[] lastState=new int[0];
     static volatile int[] lastUidState=new int[0];
+    static volatile int[] lastCraftState=new int[0];
     static volatile int[] lastFocusState=new int[0],lastWindowState=new int[0];
     @Override public boolean onCreate(){Settings.grantGameAccess(getContext());return true;}
     private void checkCaller(){
@@ -27,8 +28,8 @@ public final class ConfigProvider extends ContentProvider {
         RootProxyService service=RootProxyService.instance;
         if(service!=null)service.ensureHelper();
         SharedPreferences p=Settings.preferences(getContext());
-        MatrixCursor result=new MatrixCursor(new String[]{"enabled","capture","mouse_scale","touchpad_gain","proxy_port","proxy_token","hide_uid","focus_guard"});
-        result.addRow(new Object[]{p.getBoolean("enabled",true)?1:0,p.getBoolean("capture",true)?1:0,p.getFloat("mouse_scale",0.02f),p.getFloat("touchpad_gain",0.25f),RootProxyService.port,RootProxyService.token,p.getBoolean("hide_uid",true)?1:0,p.getBoolean("focus_guard",true)?1:0});
+        MatrixCursor result=new MatrixCursor(new String[]{"enabled","capture","mouse_scale","touchpad_gain","proxy_port","proxy_token","hide_uid","focus_guard","portable_craft","craft_key","craft_meta"});
+        result.addRow(new Object[]{p.getBoolean("enabled",true)?1:0,p.getBoolean("capture",true)?1:0,p.getFloat("mouse_scale",0.02f),p.getFloat("touchpad_gain",0.25f),RootProxyService.port,RootProxyService.token,p.getBoolean("hide_uid",true)?1:0,p.getBoolean("focus_guard",true)?1:0,p.getBoolean("portable_craft",true)?1:0,p.getInt("craft_key",Shortcut.DEFAULT_KEY),p.getInt("craft_meta",0)&Shortcut.META_MASK});
         return result;
     }
     @Override public Bundle call(String method,String arg,Bundle extras){
@@ -36,6 +37,7 @@ public final class ConfigProvider extends ContentProvider {
             Bundle result=new Bundle();result.putLong("lastReport",lastReport);result.putIntArray("state",lastState);
             result.putString("rootStatus",RootProxyService.status);result.putInt("proxyPort",RootProxyService.port);
             result.putIntArray("uidState",lastUidState);
+            result.putIntArray("craftState",lastCraftState);
             result.putIntArray("focusState",lastFocusState);result.putIntArray("windowState",lastWindowState);
             return result;
         }
@@ -50,6 +52,7 @@ public final class ConfigProvider extends ContentProvider {
         checkCaller();
         if("report".equals(method) && extras!=null){int[] state=extras.getIntArray("state");if(state!=null&&state.length<=10){lastState=state;lastReport=System.currentTimeMillis();}}
         if("report".equals(method) && extras!=null){int[] uid=extras.getIntArray("uidState");if(uid!=null&&uid.length==5)lastUidState=uid;}
+        if("report".equals(method) && extras!=null){int[] craft=extras.getIntArray("craftState");if(craft!=null&&craft.length==6)lastCraftState=craft;}
         if("report".equals(method) && extras!=null){
             int[] focus=extras.getIntArray("focusState"),window=extras.getIntArray("windowState");
             if(focus!=null&&focus.length==9)lastFocusState=focus;

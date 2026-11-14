@@ -22,6 +22,8 @@ public final class CaptureController {
     private View view;
     private boolean stopped;
     private volatile boolean enabled=true, capture=true;
+    private volatile int craftKey=Shortcut.DEFAULT_KEY,craftModifiers;
+    private int heldCraftKey;
     private volatile boolean focusGuard=true;
     private boolean windowFocused,focusTouchArmed,swallowTouch;
     private long focusGainedAt;
@@ -64,9 +66,13 @@ public final class CaptureController {
                 NativeBridge.configureUid(c.getInt(c.getColumnIndexOrThrow("hide_uid"))!=0);
                 focusGuard=c.getInt(c.getColumnIndexOrThrow("focus_guard"))!=0;
                 NativeBridge.configureFocusGuard(focusGuard);
+                NativeBridge.configureCraft(c.getInt(c.getColumnIndexOrThrow("portable_craft"))!=0);
+                craftKey=c.getInt(c.getColumnIndexOrThrow("craft_key"));
+                craftModifiers=c.getInt(c.getColumnIndexOrThrow("craft_meta"));
             }
             Bundle report=new Bundle();report.putIntArray("state",NativeBridge.state());
             report.putIntArray("uidState",NativeBridge.uidState());
+            report.putIntArray("craftState",NativeBridge.craftState());
             report.putIntArray("focusState",NativeBridge.focusState());
             report.putIntArray("windowState",new int[]{focusLosses,focusGains,touchDowns,swallowedGestures,swallowedEvents,windowFocused?1:0,swallowTouch?1:0,focusGuard?1:0,lastTouchSource,lastTouchAction});
             activity.getContentResolver().call(Settings.URI,"report",null,report);
@@ -101,7 +107,7 @@ public final class CaptureController {
             focusGains++;focusGainedAt=SystemClock.uptimeMillis();
             final long gained=focusGainedAt;
             main.postDelayed(()->{if(windowFocused&&focusGainedAt==gained&&!swallowTouch)focusTouchArmed=false;},180);
-        }else {focusLosses++;focusTouchArmed=true;}
+        }else {focusLosses++;focusTouchArmed=true;heldCraftKey=0;}
         NativeBridge.setCaptureState(false,focused);
         Log.i("vovotool","Game window focus="+focused);
     }
@@ -167,9 +173,17 @@ public final class CaptureController {
         int code=event.getKeyCode();
         // Some keyboard layouts label the physical Esc key as Android Back.
         if(code==KeyEvent.KEYCODE_BACK && event.isFromSource(InputDevice.SOURCE_KEYBOARD) && event.getScanCode()==1)code=KeyEvent.KEYCODE_ESCAPE;
-        if(code!=KeyEvent.KEYCODE_ENTER && code!=KeyEvent.KEYCODE_NUMPAD_ENTER && code!=KeyEvent.KEYCODE_ESCAPE)return false;
+        if(c.heldCraftKey!=0 && code==c.heldCraftKey){
+            if(action==KeyEvent.ACTION_UP){c.heldCraftKey=0;NativeBridge.craftKey(false);}
+            return true;
+        }
         View focus=activity.getCurrentFocus();
         if(focus!=null && focus.onCheckIsTextEditor())return false;
+        if(action==KeyEvent.ACTION_DOWN && code==c.craftKey && Shortcut.modifiers(event)==c.craftModifiers){
+            boolean handled=NativeBridge.craftKey(true);
+            if(handled){c.heldCraftKey=code;return true;}
+        }
+        if(code!=KeyEvent.KEYCODE_ENTER && code!=KeyEvent.KEYCODE_NUMPAD_ENTER && code!=KeyEvent.KEYCODE_ESCAPE)return false;
         boolean handled=NativeBridge.key(code,action==KeyEvent.ACTION_DOWN);
         if(handled && event.getRepeatCount()==0)Log.i("vovotool","Keyboard bridge code="+code+" action="+action+" scan="+event.getScanCode());
         return handled;

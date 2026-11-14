@@ -12,6 +12,7 @@ targets={'tick':0xe1e63d8,'setDevice':0xe1e2d04,'setController':0xd104b18,'selec
 targets.update({'uidTextSetter':0xcc4f230,'textPopulateMesh':0xcc4fbe4,'objectName':0x8ffe494,'stringFromUtf16':0x8ed2e94})
 targets['switchInputMode']=0xe1cb1fc
 targets.update({'componentTransform':0x80e5930,'componentGameObject':0x80e5b50,'transformParent':0x8fffc18,'objectSetActive':0x95779f8,'objectActiveSelf':0x95779fc})
+targets.update({'openPageByName':0xfdba624})
 rows=[]
 with library.open('rb') as f:
  for name,rva in targets.items():

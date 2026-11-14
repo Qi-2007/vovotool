@@ -12,6 +12,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.text.InputType;
 import android.view.View;
+import android.view.KeyEvent;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -22,9 +23,13 @@ import android.widget.Toast;
 
 public final class MainActivity extends Activity {
     private final Handler handler=new Handler(Looper.getMainLooper());
-    private TextView state,rootState,uidState;
+    private TextView state,rootState,uidState,craftState;
     private EditText mouse,touchpad;
     private SharedPreferences prefs;
+    private Button shortcutButton;
+    private boolean recordingShortcut;
+    private int recordedRelease;
+    private String craftShortcut(){return Shortcut.label(prefs.getInt("craft_key",Shortcut.DEFAULT_KEY),prefs.getInt("craft_meta",0));}
     private int dp(int value){return (int)(getResources().getDisplayMetrics().density*value+.5f);}
     private TextView text(LinearLayout parent,String value,int size){TextView t=new TextView(this);t.setText(value);t.setTextSize(size);t.setTextColor(Color.rgb(225,232,241));t.setPadding(0,dp(8),0,dp(8));parent.addView(t);return t;}
     private Button button(LinearLayout parent,String title,View.OnClickListener action){Button b=new Button(this);b.setText(title);b.setOnClickListener(action);parent.addView(b,new LinearLayout.LayoutParams(-1,dp(54)));return b;}
@@ -40,6 +45,10 @@ public final class MainActivity extends Activity {
         Switch capture=new Switch(this);capture.setText("镜头捕获指针，菜单自动释放");capture.setTextColor(Color.WHITE);capture.setChecked(prefs.getBoolean("capture",true));capture.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("capture",c).apply());layout.addView(capture);
         Switch hideUid=new Switch(this);hideUid.setText("隐藏 UID（右下角及派蒙菜单）");hideUid.setTextColor(Color.WHITE);hideUid.setChecked(prefs.getBoolean("hide_uid",true));hideUid.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("hide_uid",c).apply());layout.addView(hideUid);
         uidState=text(layout,"等待 UID 显示组件",14);
+        Switch craft=new Switch(this);craft.setText("随身合成台");craft.setTextColor(Color.WHITE);craft.setChecked(prefs.getBoolean("portable_craft",true));craft.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("portable_craft",c).apply());layout.addView(craft);
+        shortcutButton=button(layout,"设置快捷键 · "+craftShortcut(),v->{recordingShortcut=true;shortcutButton.setText("请按快捷键（Esc 取消）");});
+        text(layout,"支持普通按键及 Ctrl、Alt、Shift 组合键。保存后约 1 秒在游戏中生效；在大世界可操作状态下使用。",14);
+        craftState=text(layout,"随身合成台已就绪",14);
         mouse=number(layout,"镜头基础倍率（默认 0.02）",prefs.getFloat("mouse_scale",.02f));
         touchpad=number(layout,"触控板独立倍率（默认 0.25）",prefs.getFloat("touchpad_gain",.25f));
         button(layout,"保存速度",v->{try{
@@ -80,8 +89,37 @@ public final class MainActivity extends Activity {
                 default:uidState.setText("UID 隐藏未启用");
             }
         }else uidState.setText("等待 UID 显示组件");
+        int[] craft=ConfigProvider.lastCraftState;
+        if(fresh&&craft.length==6){
+            if(craft[1]==0)craftState.setText("随身合成台未启用");
+            else switch(craft[0]){
+                case 1:case 2:craftState.setText("正在打开合成界面");break;
+                case 3:craftState.setText("上次已成功打开合成界面");break;
+                case -1:craftState.setText("请回到大世界可操作状态后按 "+craftShortcut());break;
+                case -2:craftState.setText("游戏未接受合成界面请求");break;
+                case -3:craftState.setText("等待合成界面超时");break;
+                default:craftState.setText("随身合成台已就绪 · "+craftShortcut());
+            }
+        }else craftState.setText("随身合成台等待游戏连接");
         rootState.setText(RootProxyService.status);handler.postDelayed(this,1000);
     }};
     @Override public void onResume(){super.onResume();Settings.grantGameAccess(this);handler.post(refresh);}
-    @Override public void onPause(){handler.removeCallbacks(refresh);super.onPause();}
+    @Override public boolean dispatchKeyEvent(KeyEvent event){
+        int code=event.getKeyCode();
+        if(event.getAction()==KeyEvent.ACTION_UP && recordedRelease==code){recordedRelease=0;return true;}
+        if(!recordingShortcut)return super.dispatchKeyEvent(event);
+        if(event.getAction()!=KeyEvent.ACTION_DOWN || KeyEvent.isModifierKey(code))return true;
+        if(code==KeyEvent.KEYCODE_ESCAPE || code==KeyEvent.KEYCODE_BACK){
+            recordingShortcut=false;recordedRelease=code;shortcutButton.setText("设置快捷键 · "+craftShortcut());return true;
+        }
+        if(!Shortcut.supported(code)){Toast.makeText(this,"请换一个普通按键或组合键",Toast.LENGTH_SHORT).show();return true;}
+        prefs.edit().putInt("craft_key",code).putInt("craft_meta",Shortcut.modifiers(event)).apply();
+        recordingShortcut=false;recordedRelease=code;shortcutButton.setText("设置快捷键 · "+craftShortcut());
+        Toast.makeText(this,"已保存："+craftShortcut(),Toast.LENGTH_SHORT).show();return true;
+    }
+    @Override public void onPause(){
+        recordingShortcut=false;recordedRelease=0;
+        if(shortcutButton!=null)shortcutButton.setText("设置快捷键 · "+craftShortcut());
+        handler.removeCallbacks(refresh);super.onPause();
+    }
 }
