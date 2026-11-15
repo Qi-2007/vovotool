@@ -29,6 +29,7 @@ public final class CaptureController {
     private int heldCraftKey,heldDailyKey;
     private int lastDailyNoticeRequests,lastDailyNoticeStatus;
     private long lastDailyNoticeAt;
+    private String lastRenderProbe="{}";
     private volatile boolean focusGuard=true;
     private boolean windowFocused,focusTouchArmed,swallowTouch;
     private long focusGainedAt;
@@ -81,9 +82,13 @@ public final class CaptureController {
                 expeditionKey=c.getInt(c.getColumnIndexOrThrow("expedition_key"));
                 expeditionModifiers=c.getInt(c.getColumnIndexOrThrow("expedition_meta"));
                 GraphicsSettings.configure(activity,c);
+                NativeBridge.requestRenderCapture(c.getLong(c.getColumnIndexOrThrow("render_capture")));
             }
             Bundle report=new Bundle();report.putIntArray("state",NativeBridge.state());
             report.putIntArray("graphicsState",NativeBridge.graphicsState());
+            report.putIntArray("renderState",NativeBridge.renderState());
+            report.putIntArray("photoState",NativeBridge.photoState());
+            String probe=NativeBridge.renderProbe();if(!"{}".equals(probe)&&!probe.equals(lastRenderProbe)){report.putString("renderProbe",probe);lastRenderProbe=probe;}
             report.putIntArray("qrState",QrLoginBridge.state());
             report.putIntArray("uidState",NativeBridge.uidState());
             report.putIntArray("craftState",NativeBridge.craftState());

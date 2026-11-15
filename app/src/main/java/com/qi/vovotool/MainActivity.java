@@ -151,7 +151,7 @@ public final class MainActivity extends Activity {
                 default:expeditionState.setText("探索派遣已就绪 · "+expeditionShortcut());
             }
         }else expeditionState.setText("探索派遣等待游戏连接");
-        graphicsState.setText(GraphicsSettings.status(ConfigProvider.lastGraphicsState,fresh));
+        graphicsState.setText(GraphicsSettings.status(ConfigProvider.lastGraphicsState,ConfigProvider.lastRenderState,fresh));
         rootState.setText(RootProxyService.status);handler.postDelayed(this,1000);
     }};
     @Override public void onResume(){super.onResume();Settings.grantGameAccess(this);handler.post(refresh);}

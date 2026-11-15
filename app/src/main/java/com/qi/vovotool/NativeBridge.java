@@ -32,6 +32,10 @@ public final class NativeBridge {
     public static native int[] dailyState();
     public static native void configureFocusGuard(boolean active);
     public static native int[] focusState();
-    public static native void configureGraphics(boolean enabled,boolean resolution,int width,int height,int nativeWidth,int nativeHeight,int fps,boolean effects,int vegetation);
+    public static native void configureGraphics(boolean enabled,boolean resolution,int width,int height,int nativeWidth,int nativeHeight,int fps,boolean effects,int vegetation,int path);
+    public static native void requestRenderCapture(long token);
+    public static native String renderProbe();
     public static native int[] graphicsState();
+    public static native int[] renderState();
+    public static native int[] photoState();
 }

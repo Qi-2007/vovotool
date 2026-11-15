@@ -13,6 +13,10 @@ import android.os.Process;
 public final class ConfigProvider extends ContentProvider {
     static volatile long lastReport;
     static volatile int[] lastGraphicsState=new int[0];
+    static volatile int[] lastRenderState=new int[0];
+    static volatile int[] lastPhotoState=new int[0];
+    static volatile String lastRenderProbe="{}";
+    static volatile long renderCaptureToken;
     static volatile int[] lastState=new int[0];
     static volatile int[] lastUidState=new int[0];
     static volatile int[] lastCraftState=new int[0],lastDailyState=new int[0],lastQrState=new int[0],lastExpeditionState=new int[0];
@@ -29,8 +33,8 @@ public final class ConfigProvider extends ContentProvider {
         RootProxyService service=RootProxyService.instance;
         if(service!=null)service.ensureHelper();
         SharedPreferences p=Settings.preferences(getContext());
-        MatrixCursor result=new MatrixCursor(new String[]{"enabled","capture","mouse_scale","touchpad_gain","proxy_port","proxy_token","hide_uid","focus_guard","portable_craft","craft_key","craft_meta","portable_daily","daily_key","daily_meta","qr_login","portable_expedition","expedition_key","expedition_meta","graphics_enabled","render_resolution","render_width","render_height","target_fps","effect_enhance","veg_percent"});
-        result.addRow(new Object[]{p.getBoolean("enabled",true)?1:0,p.getBoolean("capture",true)?1:0,p.getFloat("mouse_scale",0.02f),p.getFloat("touchpad_gain",0.25f),RootProxyService.port,RootProxyService.token,p.getBoolean("hide_uid",true)?1:0,p.getBoolean("focus_guard",true)?1:0,p.getBoolean("portable_craft",true)?1:0,p.getInt("craft_key",Shortcut.DEFAULT_KEY),p.getInt("craft_meta",0)&Shortcut.META_MASK,p.getBoolean("portable_daily",true)?1:0,p.getInt("daily_key",Shortcut.DEFAULT_DAILY_KEY),p.getInt("daily_meta",0)&Shortcut.META_MASK,p.getBoolean("qr_login",true)?1:0,p.getBoolean("portable_expedition",true)?1:0,p.getInt("expedition_key",Shortcut.DEFAULT_EXPEDITION_KEY),p.getInt("expedition_meta",0)&Shortcut.META_MASK,p.getBoolean("graphics_enabled",false)?1:0,p.getBoolean("render_resolution",false)?1:0,p.getInt("render_width",0),p.getInt("render_height",0),p.getInt("target_fps",0),p.getBoolean("effect_enhance",false)?1:0,p.getInt("veg_percent",100)});
+        MatrixCursor result=new MatrixCursor(new String[]{"enabled","capture","mouse_scale","touchpad_gain","proxy_port","proxy_token","hide_uid","focus_guard","portable_craft","craft_key","craft_meta","portable_daily","daily_key","daily_meta","qr_login","portable_expedition","expedition_key","expedition_meta","graphics_enabled","render_resolution","render_width","render_height","target_fps","effect_enhance","veg_percent","render_path","render_capture"});
+        result.addRow(new Object[]{p.getBoolean("enabled",true)?1:0,p.getBoolean("capture",true)?1:0,p.getFloat("mouse_scale",0.02f),p.getFloat("touchpad_gain",0.25f),RootProxyService.port,RootProxyService.token,p.getBoolean("hide_uid",true)?1:0,p.getBoolean("focus_guard",true)?1:0,p.getBoolean("portable_craft",true)?1:0,p.getInt("craft_key",Shortcut.DEFAULT_KEY),p.getInt("craft_meta",0)&Shortcut.META_MASK,p.getBoolean("portable_daily",true)?1:0,p.getInt("daily_key",Shortcut.DEFAULT_DAILY_KEY),p.getInt("daily_meta",0)&Shortcut.META_MASK,p.getBoolean("qr_login",true)?1:0,p.getBoolean("portable_expedition",true)?1:0,p.getInt("expedition_key",Shortcut.DEFAULT_EXPEDITION_KEY),p.getInt("expedition_meta",0)&Shortcut.META_MASK,p.getBoolean("graphics_enabled",false)?1:0,p.getBoolean("render_resolution",false)?1:0,p.getInt("render_width",0),p.getInt("render_height",0),p.getInt("target_fps",0),p.getBoolean("effect_enhance",false)?1:0,p.getInt("veg_percent",100),p.getInt("render_path",3),renderCaptureToken});
         return result;
     }
     @Override public Bundle call(String method,String arg,Bundle extras){
@@ -43,8 +47,18 @@ public final class ConfigProvider extends ContentProvider {
             result.putIntArray("qrState",lastQrState);
             result.putIntArray("expeditionState",lastExpeditionState);
             result.putIntArray("graphicsState",lastGraphicsState);
+            result.putIntArray("renderState",lastRenderState);
+            result.putIntArray("photoState",lastPhotoState);
             result.putIntArray("focusState",lastFocusState);result.putIntArray("windowState",lastWindowState);
             return result;
+        }
+        if("graphics_config".equals(method)&&(Binder.getCallingUid()==0||Binder.getCallingUid()==Process.myUid())){
+            SharedPreferences p=Settings.preferences(getContext());Bundle result=new Bundle();
+            for(String key:GraphicsSettings.KEYS){
+                if(!p.contains(key))continue;
+                if("graphics_enabled".equals(key)||"render_resolution".equals(key)||"effect_enhance".equals(key))result.putBoolean(key,p.getBoolean(key,false));
+                else result.putInt(key,p.getInt(key,0));
+            }result.putInt("render_path",p.getInt("render_path",3));return result;
         }
         if("set_graphics".equals(method)&&(Binder.getCallingUid()==0||Binder.getCallingUid()==Process.myUid())&&extras!=null){
             SharedPreferences p=Settings.preferences(getContext());int[] n=GraphicsSettings.screen(getContext());
@@ -53,6 +67,15 @@ public final class ConfigProvider extends ContentProvider {
             boolean res=extras.getBoolean("render_resolution",p.getBoolean("render_resolution",false));
             String error=GraphicsSettings.validate(w,h,n[0],n[1],fps,veg,res);if(error!=null)throw new IllegalArgumentException(error);
             p.edit().putBoolean("graphics_enabled",extras.getBoolean("graphics_enabled",p.getBoolean("graphics_enabled",false))).putBoolean("render_resolution",res).putInt("render_width",w).putInt("render_height",h).putInt("target_fps",fps).putInt("veg_percent",veg).putBoolean("effect_enhance",extras.getBoolean("effect_enhance",p.getBoolean("effect_enhance",false))).commit();return Bundle.EMPTY;
+        }
+        if(("set_render_path".equals(method)||"capture_render".equals(method)||"render_probe".equals(method))&&(Binder.getCallingUid()==0||Binder.getCallingUid()==Process.myUid())){
+            Bundle result=new Bundle();
+            if("set_render_path".equals(method)){
+                int path=Integer.parseInt(arg);if(path<0||path>3)throw new IllegalArgumentException("Expected 0, 1, 2 or 3");
+                Settings.preferences(getContext()).edit().putInt("render_path",path).commit();
+            }else if("capture_render".equals(method)){renderCaptureToken=System.currentTimeMillis();lastRenderProbe="{}";result.putLong("token",renderCaptureToken);}
+            else result.putString("probe",lastRenderProbe);
+            return result;
         }
         if("set_focus_guard".equals(method)&&(Binder.getCallingUid()==0||Binder.getCallingUid()==Process.myUid())){
             if(!"true".equals(arg)&&!"false".equals(arg))throw new IllegalArgumentException("Expected true or false");
@@ -63,6 +86,8 @@ public final class ConfigProvider extends ContentProvider {
             Settings.preferences(getContext()).edit().putBoolean("hide_uid",Boolean.parseBoolean(arg)).apply();return Bundle.EMPTY;
         }
         checkCaller();
+        if("report".equals(method)&&extras!=null){String probe=extras.getString("renderProbe");if(probe!=null&&probe.length()<=700000)lastRenderProbe=probe;}
+        if("report".equals(method)&&extras!=null){int[] render=extras.getIntArray("renderState");if(render!=null&&render.length==12)lastRenderState=render;int[] photo=extras.getIntArray("photoState");if(photo!=null&&photo.length==10)lastPhotoState=photo;}
         if("report".equals(method)&&extras!=null){int[] graphics=extras.getIntArray("graphicsState");if(graphics!=null&&graphics.length==21)lastGraphicsState=graphics;}
         if("report".equals(method)&&extras!=null){int[] expedition=extras.getIntArray("expeditionState");if(expedition!=null&&expedition.length==6)lastExpeditionState=expedition;}
         if("report".equals(method)&&extras!=null){int[] qr=extras.getIntArray("qrState");if(qr!=null&&qr.length==5)lastQrState=qr;}

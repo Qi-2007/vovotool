@@ -4,6 +4,8 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.graphics.Color;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.DisplayMetrics;
 import android.view.WindowManager;
 import android.widget.*;
@@ -21,7 +23,7 @@ final class GraphicsSettings {
         NativeBridge.configureGraphics(c.getInt(c.getColumnIndexOrThrow("graphics_enabled"))!=0,
             c.getInt(c.getColumnIndexOrThrow("render_resolution"))!=0,c.getInt(c.getColumnIndexOrThrow("render_width")),
             c.getInt(c.getColumnIndexOrThrow("render_height")),n[0],n[1],c.getInt(c.getColumnIndexOrThrow("target_fps")),
-            c.getInt(c.getColumnIndexOrThrow("effect_enhance"))!=0,c.getInt(c.getColumnIndexOrThrow("veg_percent")));
+            c.getInt(c.getColumnIndexOrThrow("effect_enhance"))!=0,c.getInt(c.getColumnIndexOrThrow("veg_percent")),c.getInt(c.getColumnIndexOrThrow("render_path")));
     }
     static void load(Context context){
         try(Cursor c=context.getContentResolver().query(Settings.URI,null,null,null,null)){
@@ -46,8 +48,28 @@ final class GraphicsSettings {
         Switch resolution=toggle(c,parent,"自定义渲染分辨率",p.getBoolean("render_resolution",false));
         EditText width=integer(c,parent,"渲染宽度",p.getInt("render_width",n[0]&~3));
         EditText height=integer(c,parent,"渲染高度",p.getInt("render_height",n[1]&~3));
-        LinearLayout presets=new LinearLayout(c);parent.addView(presets);
-        for(int percent:new int[]{100,85,70}){Button b=new Button(c);b.setText(percent+"%");presets.addView(b,new LinearLayout.LayoutParams(0,-2,1));b.setOnClickListener(v->{width.setText(Integer.toString((n[0]*percent/100)&~3));height.setText(Integer.toString((n[1]*percent/100)&~3));});}
+        int minimumPercent=Math.min(100,Math.max((1280*100+n[0]-1)/n[0],(720*100+n[1]-1)/n[1]));
+        final int minimum=((minimumPercent+4)/5)*5;
+        TextView scaleLabel=label(c,parent,"",16);
+        SeekBar scale=new SeekBar(c);scale.setMax((100-minimum)/5);scale.setKeyProgressIncrement(1);scale.setEnabled(minimum<100);scale.setContentDescription("渲染分辨率比例");parent.addView(scale);
+        label(c,parent,"宽高同比例缩放，步进 5%，范围 "+minimum+"%～100%。也可手动输入宽高。",14);
+        boolean[] scaling={false};
+        Runnable syncScale=()->{
+            try{
+                int w=Integer.parseInt(width.getText().toString().trim()),h=Integer.parseInt(height.getText().toString().trim());
+                int percent=Math.max(minimum,Math.min(100,Math.round(((float)w/n[0]+(float)h/n[1])*10)*5));
+                scale.setProgress((percent-minimum)/5);
+                boolean exact=w==((n[0]*percent/100)&~3)&&h==((n[1]*percent/100)&~3);
+                scaleLabel.setText("渲染比例："+(exact?percent+"%":"自定义")+" · "+w+"×"+h);
+            }catch(NumberFormatException e){scaleLabel.setText("渲染比例：自定义（请输入宽高）");}
+        };
+        scale.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
+            public void onStartTrackingTouch(SeekBar s){}public void onStopTrackingTouch(SeekBar s){onProgressChanged(s,s.getProgress(),true);}
+            public void onProgressChanged(SeekBar s,int value,boolean user){if(!user)return;int percent=minimum+value*5;scaling[0]=true;
+                width.setText(Integer.toString((n[0]*percent/100)&~3));height.setText(Integer.toString((n[1]*percent/100)&~3));scaling[0]=false;syncScale.run();}
+        });
+        TextWatcher dimensions=new TextWatcher(){public void beforeTextChanged(CharSequence s,int start,int count,int after){}public void onTextChanged(CharSequence s,int start,int before,int count){}public void afterTextChanged(Editable s){if(!scaling[0])syncScale.run();}};
+        width.addTextChangedListener(dimensions);height.addTextChangedListener(dimensions);syncScale.run();
         label(c,parent,"帧率上限（实际帧率取决于设备和游戏负载）",16);
         Spinner fps=new Spinner(c);String[] names=new String[FPS.length];int selection=0;
         for(int i=0;i<FPS.length;i++){names[i]=FPS[i]==0?"跟随游戏":FPS[i]+" FPS";if(FPS[i]==p.getInt("target_fps",0))selection=i;}
@@ -69,12 +91,14 @@ final class GraphicsSettings {
         reset.setOnClickListener(v->{SharedPreferences.Editor editor=p.edit();for(String key:KEYS)editor.remove(key);editor.apply();active.setChecked(false);resolution.setChecked(false);effects.setChecked(false);fps.setSelection(0);veg.setProgress(18);width.setText(Integer.toString(n[0]&~3));height.setText(Integer.toString(n[1]&~3));Toast.makeText(c,"已恢复默认，下次启动原神生效",Toast.LENGTH_LONG).show();});
         return status;
     }
-    static String status(int[] s,boolean fresh){
+    static String status(int[] s,int[] render,boolean fresh){
         if(!fresh||s.length!=21)return "图形设置等待游戏连接";
         String pending=s[4]!=0?" · 新设置待重启生效":"";
         if(s[0]<0)return "图形设置部分未生效（状态 "+s[0]+"）"+pending;
         if(s[3]==0)return "本次进程跟随游戏图形设置"+pending;
-        String rendering=s[6]>0?s[6]+"×"+s[7]:"等待 Vulkan 渲染资源";
-        return "本次渲染："+rendering+" · 帧率上限 "+(s[8]>0?Integer.toString(s[8]):"跟随游戏")+" · 距离 "+s[17]+"%"+pending;
+        String output=s[6]>0?s[6]+"×"+s[7]:"等待渲染资源";
+        String scene=""; // Managed RT size alone does not establish scene raster resolution.
+        String readback=render.length==12&&render[11]>0?" · 检测到图像读回区域越界":"";
+        return scene+"输出缓冲："+output+" · 帧率上限 "+(s[8]>0?Integer.toString(s[8]):"跟随游戏")+" · 距离 "+s[17]+"%"+pending+readback;
     }
 }

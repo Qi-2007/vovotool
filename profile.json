@@ -138,6 +138,53 @@
       "name": "graphicsVulkanResolverLoad",
       "rva": 89973488,
       "bytes": "553f08d0543f08f0e178fdf021703091"
+    },
+    {
+      "name": "graphicsScreenWidth",
+      "rva": 71534784,
+      "bytes": "006c40b9c0035fd6016c00b9c0035fd6"
+    },
+    {
+      "name": "graphicsScreenHeight",
+      "rva": 72188572,
+      "bytes": "007040b9c0035fd601400091e00308aa"
+    },
+    {
+      "name": "graphicsMainCamera",
+      "rva": 209743136,
+      "bytes": "bdf80916fef809166ef9091688ac0490"
+    },
+    {
+      "name": "graphicsRebuildScene",
+      "rva": 155686956,
+      "bytes": "ff4303d1e923086dfe4b00f9f85f0aa9"
+    },
+    {
+      "name": "graphicsPostProcessUpdate",
+      "rva": 155691192,
+      "bytes": "ff8300d1fe4f01a9083041f9c80100b4"
+    },
+    {
+      "name": "graphicsPrepareScene",
+      "rva": 155697268,
+      "bytes": "fe67bca9f85f01a9f65702a9f44f03a9"
+    },
+    {
+      "name": "graphicsSetResolution",
+      "rva": 78182808,
+      "bytes": "89990890e803012ae103002a205547f9"
+    }
+  ],
+  "photo": [
+    {
+      "name": "photoRead",
+      "rva": 78266244,
+      "bytes": "ff4301d1fe5f02a9f65703a9f44f04a9"
+    },
+    {
+      "name": "photoResize",
+      "rva": 78266028,
+      "bytes": "ffc300d1fe5701a9f44f02a9f50300aa"
     }
   ]
 }
