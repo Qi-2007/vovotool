@@ -21,6 +21,7 @@ graphics_targets['graphicsSetResolution']=0x4a8f998
 photo_targets={'photoRead':0x4aa3f84,'photoResize':0x4aa3eac}
 look_targets={'lookRefresh':0xe1cb71c,'lookHorizontal':0xe1d35b8,'lookVertical':0xe1d7ccc,'lookSpeed':0xe1d2d64,'lookAxisSetting':0xe1cb88c,'lookSourceLayout':0xe1cb7d8,'lookSpeedDefault':0xe1d8ce8}
 touch_targets={'touchRotate':0xcc6f6c8}
+map_mouse_targets={'mapUpdateTouches':0x97dad60,'mapMouseHeld':0x4a92efc,'mapMouseDown':0x4a92f3c,'mapMouseUp':0x4a92f70}
 rows=[]
 with library.open('rb') as f:
  for name,rva in targets.items():
@@ -50,6 +51,11 @@ with library.open('rb') as f:
  for name,rva in touch_targets.items():
   f.seek(rva);touches.append({'name':name,'rva':rva,'bytes':f.read(16).hex()})
 for row in touches:text+=f'inline constexpr uintptr_t {row["name"]}=0x{row["rva"]:x};\n'
+map_mouse=[]
+with library.open('rb') as f:
+ for name,rva in map_mouse_targets.items():
+  f.seek(rva);map_mouse.append({'name':name,'rva':rva,'bytes':f.read(16).hex()})
+for row in map_mouse:text+=f'inline constexpr uintptr_t {row["name"]}=0x{row["rva"]:x};\n'
 text+='struct Pin { uintptr_t rva; unsigned char bytes[16]; };\ninline constexpr Pin pins[]={\n'
 for row in rows:text+='{0x%x,{%s}},\n'%(row['rva'],','.join('0x'+row['bytes'][i:i+2] for i in range(0,32,2)))
 text+='};\ninline constexpr Pin graphicsPins[]={\n'
@@ -60,7 +66,9 @@ text+='};\ninline constexpr Pin lookPins[]={\n'
 for row in looks:text+='{0x%x,{%s}},\n'%(row['rva'],','.join('0x'+row['bytes'][i:i+2] for i in range(0,32,2)))
 text+='};\ninline constexpr Pin touchPins[]={\n'
 for row in touches:text+='{0x%x,{%s}},\n'%(row['rva'],','.join('0x'+row['bytes'][i:i+2] for i in range(0,32,2)))
+text+='};\ninline constexpr Pin mapMousePins[]={\n'
+for row in map_mouse:text+='{0x%x,{%s}},\n'%(row['rva'],','.join('0x'+row['bytes'][i:i+2] for i in range(0,32,2)))
 text+='};\n}\n'
 p=ROOT/'app/src/main/cpp/profile.hpp';p.parent.mkdir(parents=True,exist_ok=True);p.write_text(text)
-(ROOT/'profile.json').write_text(json.dumps({'version':'7.2.0_48751704_49008628','arch':'arm64-v8a','functions':rows,'graphics':graphics,'photo':photos,'look':looks,'touch':touches},indent=2))
+(ROOT/'profile.json').write_text(json.dumps({'version':'7.2.0_48751704_49008628','arch':'arm64-v8a','functions':rows,'graphics':graphics,'photo':photos,'look':looks,'touch':touches,'mapMouse':map_mouse},indent=2))
 print('Generated version-specific profile')

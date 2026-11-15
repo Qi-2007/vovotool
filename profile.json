@@ -230,5 +230,27 @@
       "rva": 214365896,
       "bytes": "485804d0e10300aa088177391f050071"
     }
+  ],
+  "mapMouse": [
+    {
+      "name": "mapUpdateTouches",
+      "rva": 159231328,
+      "bytes": "ffc304d1ec5300fdeb2b0b6de9230c6d"
+    },
+    {
+      "name": "mapMouseHeld",
+      "rva": 78196476,
+      "bytes": "1f18007168010054089808b0083141f9"
+    },
+    {
+      "name": "mapMouseDown",
+      "rva": 78196540,
+      "bytes": "1f18007108010054089808b0083141f9"
+    },
+    {
+      "name": "mapMouseUp",
+      "rva": 78196592,
+      "bytes": "1f18007108010054089808b0083141f9"
+    }
   ]
 }

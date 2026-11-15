@@ -20,6 +20,7 @@ public final class ConfigProvider extends ContentProvider {
     static volatile long lookRefreshToken;
     static volatile int[] lastLookState=new int[0];
     static volatile int[] lastTouchLookState=new int[0];
+    static volatile int[] lastMapMouseState=new int[0];
     static volatile int[] lastState=new int[0];
     static volatile int[] lastUidState=new int[0];
     static volatile int[] lastCraftState=new int[0],lastDailyState=new int[0],lastQrState=new int[0],lastExpeditionState=new int[0];
@@ -54,6 +55,7 @@ public final class ConfigProvider extends ContentProvider {
             result.putIntArray("photoState",lastPhotoState);
             result.putIntArray("lookState",lastLookState);
             result.putIntArray("touchLookState",lastTouchLookState);
+            result.putIntArray("mapMouseState",lastMapMouseState);
             result.putIntArray("focusState",lastFocusState);result.putIntArray("windowState",lastWindowState);
             return result;
         }
@@ -100,6 +102,7 @@ public final class ConfigProvider extends ContentProvider {
         checkCaller();
         if("report".equals(method)&&extras!=null){int[] look=extras.getIntArray("lookState");if(look!=null&&look.length==12)lastLookState=look;}
         if("report".equals(method)&&extras!=null){int[] touch=extras.getIntArray("touchLookState");if(touch!=null&&touch.length==3)lastTouchLookState=touch;}
+        if("report".equals(method)&&extras!=null){int[] map=extras.getIntArray("mapMouseState");if(map!=null&&map.length==6)lastMapMouseState=map;}
         if("report".equals(method)&&extras!=null){String probe=extras.getString("renderProbe");if(probe!=null&&probe.length()<=700000)lastRenderProbe=probe;}
         if("report".equals(method)&&extras!=null){int[] render=extras.getIntArray("renderState");if(render!=null&&render.length==12)lastRenderState=render;int[] photo=extras.getIntArray("photoState");if(photo!=null&&photo.length==10)lastPhotoState=photo;}
         if("report".equals(method)&&extras!=null){int[] graphics=extras.getIntArray("graphicsState");if(graphics!=null&&graphics.length==21)lastGraphicsState=graphics;}

@@ -75,6 +75,7 @@ bool classIs(P object,const char* name){
 #include "photo.hpp"
 #include "look_sensitivity.hpp"
 #include "touch_look.hpp"
+#include "map_mouse.hpp"
 bool ready(P b){
     if((read<uint8_t>(b+0x158099bc)&1)==0)return false;
     P root=read<P>(b+profile::singletonRoot);
@@ -235,7 +236,7 @@ void install(P address){
     if(hookFunction(reinterpret_cast<void*>(address+profile::keyboardUpdate),reinterpret_cast<void*>(keyboardHook),reinterpret_cast<void**>(&originalKeyboard))!=0){stage=-2;log("Keyboard hook installation failed");return;}
     if(hookFunction(reinterpret_cast<void*>(address+profile::mouseUpdate),reinterpret_cast<void*>(mouseHook),reinterpret_cast<void**>(&originalMouse))!=0){stage=-2;log("Mouse hook installation failed");return;}
     if(hookFunction(reinterpret_cast<void*>(address+profile::tick),reinterpret_cast<void*>(tickHook),reinterpret_cast<void**>(&originalTick))!=0){stage=-2;log("Tick hook installation failed");return;}
-    base=address;stage=1;installLookFactors(address);installTouchLook(address);installPhoto(address);installGraphics(address);log("Native hooks installed for pinned 7.2 ARM64 library");
+    base=address;stage=1;installLookFactors(address);installTouchLook(address);installMapMouse(address);installPhoto(address);installGraphics(address);log("Native hooks installed for pinned 7.2 ARM64 library");
 }
 int findModule(dl_phdr_info* info,size_t,void*){
     const char* name=info->dlpi_name;
@@ -277,6 +278,11 @@ extern "C" JNIEXPORT void JNICALL Java_com_qi_vovotool_NativeBridge_noteTouch(JN
 extern "C" JNIEXPORT jintArray JNICALL Java_com_qi_vovotool_NativeBridge_touchLookState(JNIEnv* env,jclass){
     jint values[]={touchLookStatus.load(),static_cast<jint>(touchLookCalls.load()),static_cast<jint>(touchLookCorrections.load())};
     jintArray result=env->NewIntArray(3);env->SetIntArrayRegion(result,0,3,values);return result;
+}
+extern "C" JNIEXPORT jintArray JNICALL Java_com_qi_vovotool_NativeBridge_mapMouseState(JNIEnv* env,jclass){
+    jint values[]={mapMouseStatus.load(),static_cast<jint>(mapMouseFrames.load()),static_cast<jint>(mapMouseConverted.load()),
+        static_cast<jint>(mapMouseDowns.load()),static_cast<jint>(mapMouseUps.load()),static_cast<jint>(mapRealTouchFrames.load())};
+    jintArray result=env->NewIntArray(6);env->SetIntArrayRegion(result,0,6,values);return result;
 }
 extern "C" JNIEXPORT void JNICALL Java_com_qi_vovotool_NativeBridge_setCaptureState(JNIEnv*,jclass,jboolean cap,jboolean focus){
     if(windowFocused.exchange(focus)!=static_cast<bool>(focus)&&focus)focusWarmUntil=nowMs()+400;

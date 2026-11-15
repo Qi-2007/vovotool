@@ -91,6 +91,7 @@ public final class CaptureController {
             report.putIntArray("photoState",NativeBridge.photoState());
             report.putIntArray("lookState",NativeBridge.lookState());
             report.putIntArray("touchLookState",NativeBridge.touchLookState());
+            report.putIntArray("mapMouseState",NativeBridge.mapMouseState());
             String probe=NativeBridge.renderProbe();if(!"{}".equals(probe)&&!probe.equals(lastRenderProbe)){report.putString("renderProbe",probe);lastRenderProbe=probe;}
             report.putIntArray("qrState",QrLoginBridge.state());
             report.putIntArray("uidState",NativeBridge.uidState());

@@ -42,4 +42,5 @@ public final class NativeBridge {
     public static native void requestLookRefresh(long token);
     public static native void noteTouch(int action);
     public static native int[] touchLookState();
+    public static native int[] mapMouseState();
 }
