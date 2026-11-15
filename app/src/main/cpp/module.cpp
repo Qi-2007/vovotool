@@ -68,6 +68,7 @@ bool classIs(P object,const char* name){
 #include "crafting.hpp"
 #include "expedition.hpp"
 #include "daily_claim.hpp"
+#include "graphics.hpp"
 bool ready(P b){
     if((read<uint8_t>(b+0x158099bc)&1)==0)return false;
     P root=read<P>(b+profile::singletonRoot);
@@ -148,6 +149,7 @@ void tickHook(void* self,void* method){
     entered=true;
     const P b=base.load();
     try {
+        if(b)updateGraphics(b);
         if(b&&ready(b)&&reinterpret_cast<P>(self)==manager){
             if(enabled){if(!applied||read<int>(manager+0x370)!=1||read<int>(input+0x1a4)!=2)apply(b);}
             else restore(b);
@@ -212,7 +214,7 @@ void install(P address){
     if(hookFunction(reinterpret_cast<void*>(address+profile::keyboardUpdate),reinterpret_cast<void*>(keyboardHook),reinterpret_cast<void**>(&originalKeyboard))!=0){stage=-2;log("Keyboard hook installation failed");return;}
     if(hookFunction(reinterpret_cast<void*>(address+profile::mouseUpdate),reinterpret_cast<void*>(mouseHook),reinterpret_cast<void**>(&originalMouse))!=0){stage=-2;log("Mouse hook installation failed");return;}
     if(hookFunction(reinterpret_cast<void*>(address+profile::tick),reinterpret_cast<void*>(tickHook),reinterpret_cast<void**>(&originalTick))!=0){stage=-2;log("Tick hook installation failed");return;}
-    base=address;stage=1;log("Native hooks installed for pinned 7.2 ARM64 library");
+    base=address;stage=1;installGraphics(address);log("Native hooks installed for pinned 7.2 ARM64 library");
 }
 int findModule(dl_phdr_info* info,size_t,void*){
     const char* name=info->dlpi_name;
@@ -312,4 +314,19 @@ extern "C" JNIEXPORT void JNICALL Java_com_qi_vovotool_NativeBridge_configureFoc
 extern "C" JNIEXPORT jintArray JNICALL Java_com_qi_vovotool_NativeBridge_focusState(JNIEnv* env,jclass){
     jint values[]={static_cast<jint>(applyCalls.load()),static_cast<jint>(deviceRequests.load()),static_cast<jint>(modeRequests.load()),static_cast<jint>(blockedDevices.load()),static_cast<jint>(blockedModes.load()),lastDevice.load(),lastMode.load(),lastSwitchCaller.load(),focusGuard.load()?1:0};
     jintArray result=env->NewIntArray(9);env->SetIntArrayRegion(result,0,9,values);return result;
+}
+extern "C" JNIEXPORT void JNICALL Java_com_qi_vovotool_NativeBridge_configureGraphics(JNIEnv*,jclass,jboolean active,jboolean resolution,jint w,jint h,jint nw,jint nh,jint fps,jboolean effects,jint vegetation){
+    GraphicsConfig c;c.active=active;c.resolution=resolution;c.effects=effects;c.nativeWidth=nw;c.nativeHeight=nh;c.width=w;c.height=h;c.fps=fps;c.vegetation=vegetation;
+    if(nw<1280||nh<720||nw>8192||nh>8192)c.active=false;
+    if(w<1280||h<720||w>nw||h>nh||w%4||h%4||std::abs((float(w)/h)/(float(nw)/nh)-1)>.1f)c.resolution=false;
+    if(fps!=0&&fps!=30&&fps!=45&&fps!=60&&fps!=90&&fps!=120&&fps!=144&&fps!=165)c.fps=0;
+    c.vegetation=std::clamp(int(vegetation),10,100);
+    std::lock_guard<std::mutex> lock(graphicsMutex);graphicsRequested=c;graphicsConfigured=true;
+}
+extern "C" JNIEXPORT jintArray JNICALL Java_com_qi_vovotool_NativeBridge_graphicsState(JNIEnv* env,jclass){
+    std::lock_guard<std::mutex> lock(graphicsMutex);
+    jint values[]={graphicsError.load(),graphicsVerified?1:0,graphicsFrozen?1:0,graphicsApplied.active?1:0,
+        graphicsFrozen&&!(graphicsApplied==graphicsRequested)?1:0,graphicsHooks.load(),graphicsWidth.load(),graphicsHeight.load(),graphicsFps.load(),
+        static_cast<jint>(graphicsSwaps.load()),static_cast<jint>(graphicsImages.load()),static_cast<jint>(graphicsFrames.load()),static_cast<jint>(graphicsAreas.load()),static_cast<jint>(graphicsViews.load()),static_cast<jint>(graphicsScissors.load()),static_cast<jint>(graphicsQuality.load()),static_cast<jint>(graphicsFailures.load()),graphicsApplied.vegetation,graphicsApplied.effects?1:0,graphicsApplied.resolution?1:0,static_cast<jint>(graphicsEffectImages.load())};
+    jintArray result=env->NewIntArray(21);env->SetIntArrayRegion(result,0,21,values);return result;
 }

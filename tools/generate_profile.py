@@ -14,6 +14,7 @@ targets['switchInputMode']=0xe1cb1fc
 targets.update({'componentTransform':0x80e5930,'componentGameObject':0x80e5b50,'transformParent':0x8fffc18,'objectSetActive':0x95779f8,'objectActiveSelf':0x95779fc})
 targets.update({'openPageByName':0xfdba624,'dailyClaimCallback':0xe1293b8,'dailyRewardTaken':0xe124320})
 targets['openExpedition']=0x83efec4
+graphics_targets={'graphicsFrameRate':0x4a807c0,'graphicsQualityFloat':0xfa71090,'graphicsVulkanInitialize':0x55ce2b8,'graphicsVulkanResolverLoad':0x55ce2f0}
 rows=[]
 with library.open('rb') as f:
  for name,rva in targets.items():
@@ -23,9 +24,16 @@ text+='inline constexpr char version[]="7.2.0_48751704_49008628";\n'
 text+='inline constexpr uintptr_t singletonRoot=0x158095a0;\n'
 for row in rows:
  text+=f'inline constexpr uintptr_t {row["name"]}=0x{row["rva"]:x};\n'
+graphics=[]
+with library.open('rb') as f:
+ for name,rva in graphics_targets.items():
+  f.seek(rva);graphics.append({'name':name,'rva':rva,'bytes':f.read(16).hex()})
+for row in graphics:text+=f'inline constexpr uintptr_t {row["name"]}=0x{row["rva"]:x};\n'
 text+='struct Pin { uintptr_t rva; unsigned char bytes[16]; };\ninline constexpr Pin pins[]={\n'
 for row in rows:text+='{0x%x,{%s}},\n'%(row['rva'],','.join('0x'+row['bytes'][i:i+2] for i in range(0,32,2)))
+text+='};\ninline constexpr Pin graphicsPins[]={\n'
+for row in graphics:text+='{0x%x,{%s}},\n'%(row['rva'],','.join('0x'+row['bytes'][i:i+2] for i in range(0,32,2)))
 text+='};\n}\n'
 p=ROOT/'app/src/main/cpp/profile.hpp';p.parent.mkdir(parents=True,exist_ok=True);p.write_text(text)
-(ROOT/'profile.json').write_text(json.dumps({'version':'7.2.0_48751704_49008628','arch':'arm64-v8a','functions':rows},indent=2))
+(ROOT/'profile.json').write_text(json.dumps({'version':'7.2.0_48751704_49008628','arch':'arm64-v8a','functions':rows,'graphics':graphics},indent=2))
 print('Generated version-specific profile')

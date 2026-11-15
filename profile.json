@@ -117,5 +117,27 @@
       "rva": 138346180,
       "bytes": "fe0f1df8f65701a9f44f02a9f5b906b0"
     }
+  ],
+  "graphics": [
+    {
+      "name": "graphicsFrameRate",
+      "rva": 78120896,
+      "bytes": "286108f000d904b9c0035fd6fe0f1df8"
+    },
+    {
+      "name": "graphicsQualityFloat",
+      "rva": 262606992,
+      "bytes": "e80f1ffcfe0700f90840201ec8e902d0"
+    },
+    {
+      "name": "graphicsVulkanInitialize",
+      "rva": 89973432,
+      "bytes": "fd7bbaa9fc6f01a9fa6702a9f85f03a9"
+    },
+    {
+      "name": "graphicsVulkanResolverLoad",
+      "rva": 89973488,
+      "bytes": "553f08d0543f08f0e178fdf021703091"
+    }
   ]
 }

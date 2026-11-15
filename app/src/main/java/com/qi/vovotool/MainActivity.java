@@ -23,7 +23,7 @@ import android.widget.Toast;
 
 public final class MainActivity extends Activity {
     private final Handler handler=new Handler(Looper.getMainLooper());
-    private TextView state,rootState,uidState,craftState,dailyState,expeditionState;
+    private TextView state,rootState,uidState,craftState,dailyState,expeditionState,graphicsState;
     private EditText mouse,touchpad;
     private SharedPreferences prefs;
     private Button shortcutButton,dailyShortcutButton,expeditionShortcutButton;
@@ -78,6 +78,7 @@ public final class MainActivity extends Activity {
             if(!Float.isFinite(m)||m<.0001f||m>2||!Float.isFinite(t)||t<.05f||t>2)throw new IllegalArgumentException();
             prefs.edit().putFloat("mouse_scale",m).putFloat("touchpad_gain",t).apply();Toast.makeText(this,"已保存，游戏内约 1 秒后生效",Toast.LENGTH_SHORT).show();
         }catch(Exception e){Toast.makeText(this,"基础倍率范围 0.0001～2；触控板倍率范围 0.05～2",Toast.LENGTH_LONG).show();}});
+        graphicsState=GraphicsSettings.add(this,layout,prefs);
         text(layout,"触控板兼容",22);
         text(layout,"外接鼠标无需启动此项。Lenovo 键盘套触控板需要 root 授权；游戏菜单继续使用系统触控板。",16);
         rootState=text(layout,"未启动",16);
@@ -150,6 +151,7 @@ public final class MainActivity extends Activity {
                 default:expeditionState.setText("探索派遣已就绪 · "+expeditionShortcut());
             }
         }else expeditionState.setText("探索派遣等待游戏连接");
+        graphicsState.setText(GraphicsSettings.status(ConfigProvider.lastGraphicsState,fresh));
         rootState.setText(RootProxyService.status);handler.postDelayed(this,1000);
     }};
     @Override public void onResume(){super.onResume();Settings.grantGameAccess(this);handler.post(refresh);}

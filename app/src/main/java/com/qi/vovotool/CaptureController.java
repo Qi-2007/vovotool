@@ -80,8 +80,10 @@ public final class CaptureController {
                 NativeBridge.configureExpedition(c.getInt(c.getColumnIndexOrThrow("portable_expedition"))!=0);
                 expeditionKey=c.getInt(c.getColumnIndexOrThrow("expedition_key"));
                 expeditionModifiers=c.getInt(c.getColumnIndexOrThrow("expedition_meta"));
+                GraphicsSettings.configure(activity,c);
             }
             Bundle report=new Bundle();report.putIntArray("state",NativeBridge.state());
+            report.putIntArray("graphicsState",NativeBridge.graphicsState());
             report.putIntArray("qrState",QrLoginBridge.state());
             report.putIntArray("uidState",NativeBridge.uidState());
             report.putIntArray("craftState",NativeBridge.craftState());
