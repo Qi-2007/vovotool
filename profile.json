@@ -186,5 +186,49 @@
       "rva": 78266028,
       "bytes": "ffc300d1fe5701a9f44f02a9f50300aa"
     }
+  ],
+  "look": [
+    {
+      "name": "lookRefresh",
+      "rva": 236762908,
+      "bytes": "ffc300d1e80b00fdfe4f02a9a8ae03d0"
+    },
+    {
+      "name": "lookHorizontal",
+      "rva": 236795320,
+      "bytes": "e80f1dfcfe5701a9f44f02a968ae03d0"
+    },
+    {
+      "name": "lookVertical",
+      "rva": 236813516,
+      "bytes": "e80f1dfcfe5701a9f44f02a948ae03d0"
+    },
+    {
+      "name": "lookSpeed",
+      "rva": 236793188,
+      "bytes": "e80f1efcfe4f01a968ae03f008896839"
+    },
+    {
+      "name": "lookAxisSetting",
+      "rva": 236763276,
+      "bytes": "e80f1dfcfe5701a9f44f02a9a8ae03d0"
+    },
+    {
+      "name": "lookSourceLayout",
+      "rva": 236763096,
+      "bytes": "68320591e00313aae1031f2ae2031f2a"
+    },
+    {
+      "name": "lookSpeedDefault",
+      "rva": 236817640,
+      "bytes": "00f6030f0824a85229008052682e01b9"
+    }
+  ],
+  "touch": [
+    {
+      "name": "touchRotate",
+      "rva": 214365896,
+      "bytes": "485804d0e10300aa088177391f050071"
+    }
   ]
 }

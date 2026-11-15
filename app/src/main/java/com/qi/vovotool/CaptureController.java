@@ -83,11 +83,14 @@ public final class CaptureController {
                 expeditionModifiers=c.getInt(c.getColumnIndexOrThrow("expedition_meta"));
                 GraphicsSettings.configure(activity,c);
                 NativeBridge.requestRenderCapture(c.getLong(c.getColumnIndexOrThrow("render_capture")));
+                NativeBridge.requestLookRefresh(c.getLong(c.getColumnIndexOrThrow("look_refresh")));
             }
             Bundle report=new Bundle();report.putIntArray("state",NativeBridge.state());
             report.putIntArray("graphicsState",NativeBridge.graphicsState());
             report.putIntArray("renderState",NativeBridge.renderState());
             report.putIntArray("photoState",NativeBridge.photoState());
+            report.putIntArray("lookState",NativeBridge.lookState());
+            report.putIntArray("touchLookState",NativeBridge.touchLookState());
             String probe=NativeBridge.renderProbe();if(!"{}".equals(probe)&&!probe.equals(lastRenderProbe)){report.putString("renderProbe",probe);lastRenderProbe=probe;}
             report.putIntArray("qrState",QrLoginBridge.state());
             report.putIntArray("uidState",NativeBridge.uidState());
@@ -168,7 +171,7 @@ public final class CaptureController {
             }
             c.focusTouchArmed=false;
         }
-        if(!c.swallowTouch)return false;
+        if(!c.swallowTouch){NativeBridge.noteTouch(action);return false;}
         c.swallowedEvents++;
         if(action==MotionEvent.ACTION_UP||action==MotionEvent.ACTION_CANCEL)c.swallowTouch=false;
         return true;

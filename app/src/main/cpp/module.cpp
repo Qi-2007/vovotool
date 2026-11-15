@@ -48,6 +48,8 @@ unsigned buttons=0,pendingButtons=0;
 int udp=-1; sockaddr_in endpoint{}; ProxyPacket packet{};
 int64_t lastProxy=0;
 bool applied=false;
+bool inputBaselineSaved=false;
+int64_t inputApplyRetryAt=0;
 P manager=0,input=0,binding=0,platform=0,keyboard=0,mouse=0,mouseSource=0,keyboardSource=0;
 struct Baseline { int device=0,mode=0; uint8_t disableKeyboard=1,disableMouse=1,keyboard=0,mouse=0; } baseline;
 int64_t nowMs(){return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();}
@@ -71,6 +73,8 @@ bool classIs(P object,const char* name){
 #include "daily_claim.hpp"
 #include "graphics.hpp"
 #include "photo.hpp"
+#include "look_sensitivity.hpp"
+#include "touch_look.hpp"
 bool ready(P b){
     if((read<uint8_t>(b+0x158099bc)&1)==0)return false;
     P root=read<P>(b+profile::singletonRoot);
@@ -83,9 +87,23 @@ bool ready(P b){
     manager=m;input=i;binding=bind;platform=p;keyboard=k;mouse=mou;mouseSource=source;keyboardSource=keys;return true;
 }
 void apply(P b){
+    if(!applied&&nowMs()<inputApplyRetryAt)return;
     applyCalls++;
     if(!applied){
-        baseline={read<int>(manager+0x370),read<int>(input+0x1a4),read<uint8_t>(platform+0x10),read<uint8_t>(platform+0x11),read<uint8_t>(keyboard+0xcd),read<uint8_t>(mouse+0xcd)};
+        if(!inputBaselineSaved){
+            baseline={read<int>(manager+0x370),read<int>(input+0x1a4),read<uint8_t>(platform+0x10),read<uint8_t>(platform+0x11),read<uint8_t>(keyboard+0xcd),read<uint8_t>(mouse+0xcd)};
+            inputBaselineSaved=true;
+        }
+        // A main page created for mobile retains its controls and cursor policy
+        // if we only change device/mode fields. Explicit activation in-world
+        // must use the complete native transition before locking PC mode.
+        if(contextPageIs(topUiContext(),u"InLevelMainPage")){
+            if(!originalModeSwitch((void*)input,1,2,nullptr)){
+                inputApplyRetryAt=nowMs()+1000;stage=1;log("Waiting for native in-world PC transition");return;
+            }
+            if(!ready(b)){stage=1;return;}
+            log("Explicit in-world PC activation completed through native UI transition");
+        }
     }
     write<uint8_t>(platform+0x10,0);write<uint8_t>(platform+0x11,0);
     auto setController=reinterpret_cast<ControllerSetter>(b+profile::setController);
@@ -104,7 +122,7 @@ void restore(P b){
     reinterpret_cast<ControllerSetter>(b+profile::setController)(reinterpret_cast<void*>(keyboard),baseline.keyboard!=0,nullptr);
     reinterpret_cast<ControllerSetter>(b+profile::setController)(reinterpret_cast<void*>(mouse),baseline.mouse!=0,nullptr);
     write<uint8_t>(platform+0x10,baseline.disableKeyboard);write<uint8_t>(platform+0x11,baseline.disableMouse);
-    applied=false;stage=3;captured=false;log("Runtime input baseline restored");
+    restoreLookFactors();applied=false;inputBaselineSaved=false;inputApplyRetryAt=0;stage=3;captured=false;log("Runtime input baseline restored");
 }
 bool pcModeLocked(){return focusGuard&&enabled&&stage==2&&applied&&read<int>(manager+0x370,-1)==1&&read<int>(input+0x1a4,-1)==2;}
 void deviceSetterHook(void* self,int device,bool refresh,void* method){
@@ -155,6 +173,7 @@ void tickHook(void* self,void* method){
         if(b&&ready(b)&&reinterpret_cast<P>(self)==manager){
             if(enabled){if(!applied||read<int>(manager+0x370)!=1||read<int>(input+0x1a4)!=2)apply(b);}
             else restore(b);
+            updateLookFactors();
             cursor=read<int>(manager+0x340,1000);inputMode=read<int>(input+0x1a4,-1);
             updateUidVisibility(b);
             updateCrafting(b);
@@ -216,7 +235,7 @@ void install(P address){
     if(hookFunction(reinterpret_cast<void*>(address+profile::keyboardUpdate),reinterpret_cast<void*>(keyboardHook),reinterpret_cast<void**>(&originalKeyboard))!=0){stage=-2;log("Keyboard hook installation failed");return;}
     if(hookFunction(reinterpret_cast<void*>(address+profile::mouseUpdate),reinterpret_cast<void*>(mouseHook),reinterpret_cast<void**>(&originalMouse))!=0){stage=-2;log("Mouse hook installation failed");return;}
     if(hookFunction(reinterpret_cast<void*>(address+profile::tick),reinterpret_cast<void*>(tickHook),reinterpret_cast<void**>(&originalTick))!=0){stage=-2;log("Tick hook installation failed");return;}
-    base=address;stage=1;installPhoto(address);installGraphics(address);log("Native hooks installed for pinned 7.2 ARM64 library");
+    base=address;stage=1;installLookFactors(address);installTouchLook(address);installPhoto(address);installGraphics(address);log("Native hooks installed for pinned 7.2 ARM64 library");
 }
 int findModule(dl_phdr_info* info,size_t,void*){
     const char* name=info->dlpi_name;
@@ -251,6 +270,13 @@ extern "C" JNIEXPORT void JNICALL Java_com_qi_vovotool_NativeBridge_configure(JN
 extern "C" JNIEXPORT jintArray JNICALL Java_com_qi_vovotool_NativeBridge_state(JNIEnv* env,jclass){
     jint values[]={stage.load(),inputMode.load(),cursor.load(),enabled.load()?1:0,static_cast<jint>(ticks.load()),static_cast<jint>(mouseFrames.load()),static_cast<jint>(motionEvents.load()),static_cast<jint>(keyEvents.load()),static_cast<jint>(keyboardFrames.load()),static_cast<jint>(escapeDispatches.load())};
     jintArray result=env->NewIntArray(10);env->SetIntArrayRegion(result,0,10,values);return result;
+}
+extern "C" JNIEXPORT void JNICALL Java_com_qi_vovotool_NativeBridge_noteTouch(JNIEnv*,jclass,jint action){
+    touchLookUntil=action==3?0:nowMs()+150;
+}
+extern "C" JNIEXPORT jintArray JNICALL Java_com_qi_vovotool_NativeBridge_touchLookState(JNIEnv* env,jclass){
+    jint values[]={touchLookStatus.load(),static_cast<jint>(touchLookCalls.load()),static_cast<jint>(touchLookCorrections.load())};
+    jintArray result=env->NewIntArray(3);env->SetIntArrayRegion(result,0,3,values);return result;
 }
 extern "C" JNIEXPORT void JNICALL Java_com_qi_vovotool_NativeBridge_setCaptureState(JNIEnv*,jclass,jboolean cap,jboolean focus){
     if(windowFocused.exchange(focus)!=static_cast<bool>(focus)&&focus)focusWarmUntil=nowMs()+400;
@@ -338,6 +364,12 @@ extern "C" JNIEXPORT jintArray JNICALL Java_com_qi_vovotool_NativeBridge_graphic
 extern "C" JNIEXPORT jintArray JNICALL Java_com_qi_vovotool_NativeBridge_photoState(JNIEnv* env,jclass){
     jint values[]={photoStatus.load(),photoRequests.load(),photoReads.load(),photoAdjusted.load(),photoWidth.load(),photoHeight.load(),photoReadWidth.load(),photoReadHeight.load(),photoTextureWidth.load(),photoTextureHeight.load()};
     jintArray result=env->NewIntArray(10);env->SetIntArrayRegion(result,0,10,values);return result;
+}
+extern "C" JNIEXPORT void JNICALL Java_com_qi_vovotool_NativeBridge_requestLookRefresh(JNIEnv*,jclass,jlong token){static jlong previous=0;if(token&&token!=previous){previous=token;lookRefreshRequested=true;}}
+extern "C" JNIEXPORT jintArray JNICALL Java_com_qi_vovotool_NativeBridge_lookState(JNIEnv* env,jclass){
+    const P p=input;auto pack=[](float v){return std::isfinite(v)&&std::abs(v)<1000?jint(v*1000000):jint(-2147483647);};
+    jint values[]={lookStatus.load(),lookFixes.load(),lookRecalculations.load(),lookWriter.load(),pack(read<float>(p+0x14c)),pack(read<float>(p+0x150)),pack(read<float>(p+0x170)),pack(read<float>(p+0x174)),pack(read<float>(p+0x12c)),read<int>(p+0x1a4,-1),lookVerified?1:0,lookRefreshRequested?1:0};
+    jintArray result=env->NewIntArray(12);env->SetIntArrayRegion(result,0,12,values);return result;
 }
 extern "C" JNIEXPORT jintArray JNICALL Java_com_qi_vovotool_NativeBridge_renderState(JNIEnv* env,jclass){
     jint values[]={renderOutputWidth.load(),renderOutputHeight.load(),graphicsSceneWidth.load(),graphicsSceneHeight.load(),

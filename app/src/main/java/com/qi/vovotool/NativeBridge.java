@@ -38,4 +38,8 @@ public final class NativeBridge {
     public static native int[] graphicsState();
     public static native int[] renderState();
     public static native int[] photoState();
+    public static native int[] lookState();
+    public static native void requestLookRefresh(long token);
+    public static native void noteTouch(int action);
+    public static native int[] touchLookState();
 }
