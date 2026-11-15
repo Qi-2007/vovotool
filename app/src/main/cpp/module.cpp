@@ -76,6 +76,7 @@ bool classIs(P object,const char* name){
 #include "look_sensitivity.hpp"
 #include "touch_look.hpp"
 #include "map_mouse.hpp"
+#include "team_loading.hpp"
 bool ready(P b){
     if((read<uint8_t>(b+0x158099bc)&1)==0)return false;
     P root=read<P>(b+profile::singletonRoot);
@@ -236,7 +237,7 @@ void install(P address){
     if(hookFunction(reinterpret_cast<void*>(address+profile::keyboardUpdate),reinterpret_cast<void*>(keyboardHook),reinterpret_cast<void**>(&originalKeyboard))!=0){stage=-2;log("Keyboard hook installation failed");return;}
     if(hookFunction(reinterpret_cast<void*>(address+profile::mouseUpdate),reinterpret_cast<void*>(mouseHook),reinterpret_cast<void**>(&originalMouse))!=0){stage=-2;log("Mouse hook installation failed");return;}
     if(hookFunction(reinterpret_cast<void*>(address+profile::tick),reinterpret_cast<void*>(tickHook),reinterpret_cast<void**>(&originalTick))!=0){stage=-2;log("Tick hook installation failed");return;}
-    base=address;stage=1;installLookFactors(address);installTouchLook(address);installMapMouse(address);installPhoto(address);installGraphics(address);log("Native hooks installed for pinned 7.2 ARM64 library");
+    base=address;stage=1;installLookFactors(address);installTouchLook(address);installMapMouse(address);installTeamLoading(address);installPhoto(address);installGraphics(address);log("Native hooks installed for pinned 7.2 ARM64 library");
 }
 int findModule(dl_phdr_info* info,size_t,void*){
     const char* name=info->dlpi_name;
@@ -307,6 +308,12 @@ extern "C" JNIEXPORT jboolean JNICALL Java_com_qi_vovotool_NativeBridge_key(JNIE
     return true;
 }
 extern "C" JNIEXPORT void JNICALL Java_com_qi_vovotool_NativeBridge_configureUid(JNIEnv*,jclass,jboolean hide){uidRequested=hide;}
+extern "C" JNIEXPORT void JNICALL Java_com_qi_vovotool_NativeBridge_configureTeamLoading(JNIEnv*,jclass,jboolean active){teamLoadingEnabled=active;}
+extern "C" JNIEXPORT jintArray JNICALL Java_com_qi_vovotool_NativeBridge_teamLoadingState(JNIEnv* env,jclass){
+    jint values[]={teamLoadingStatus.load(),teamLoadingEnabled?1:0,static_cast<jint>(teamLoadingCalls.load()),
+        static_cast<jint>(teamLoadingSkipped.load()),static_cast<jint>(teamLoadingWaiting.load()),teamLoadingDuration.load(),teamLoadingElapsed.load()};
+    jintArray result=env->NewIntArray(7);env->SetIntArrayRegion(result,0,7,values);return result;
+}
 extern "C" JNIEXPORT void JNICALL Java_com_qi_vovotool_NativeBridge_configureCraft(JNIEnv*,jclass,jboolean active){craftEnabled=active;}
 extern "C" JNIEXPORT jboolean JNICALL Java_com_qi_vovotool_NativeBridge_craftKey(JNIEnv*,jclass,jboolean down){
     if(!down){craftKeyHeld=false;return true;}

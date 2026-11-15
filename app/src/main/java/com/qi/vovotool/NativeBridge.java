@@ -43,4 +43,6 @@ public final class NativeBridge {
     public static native void noteTouch(int action);
     public static native int[] touchLookState();
     public static native int[] mapMouseState();
+    public static native void configureTeamLoading(boolean enabled);
+    public static native int[] teamLoadingState();
 }

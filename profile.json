@@ -252,5 +252,22 @@
       "rva": 78196592,
       "bytes": "1f18007108010054089808b0083141f9"
     }
+  ],
+  "teamLoading": [
+    {
+      "name": "teamLoadingMoveNext",
+      "rva": 311379344,
+      "bytes": "e80f1dfcfe5701a9f44f02a9b4900190"
+    },
+    {
+      "name": "teamLoadingLayout",
+      "rva": 311379548,
+      "bytes": "88a646bd801246bd0021201ea5020054"
+    },
+    {
+      "name": "teamLoadingReady",
+      "rva": 243384524,
+      "bytes": "28b441b9a800003528e441b91f0d0071"
+    }
   ]
 }

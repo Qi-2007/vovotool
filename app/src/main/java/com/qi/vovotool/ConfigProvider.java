@@ -20,6 +20,7 @@ public final class ConfigProvider extends ContentProvider {
     static volatile long lookRefreshToken;
     static volatile int[] lastLookState=new int[0];
     static volatile int[] lastTouchLookState=new int[0];
+    static volatile int[] lastTeamLoadingState=new int[0];
     static volatile int[] lastMapMouseState=new int[0];
     static volatile int[] lastState=new int[0];
     static volatile int[] lastUidState=new int[0];
@@ -37,8 +38,8 @@ public final class ConfigProvider extends ContentProvider {
         RootProxyService service=RootProxyService.instance;
         if(service!=null)service.ensureHelper();
         SharedPreferences p=Settings.preferences(getContext());
-        MatrixCursor result=new MatrixCursor(new String[]{"enabled","capture","mouse_scale","touchpad_gain","proxy_port","proxy_token","hide_uid","focus_guard","portable_craft","craft_key","craft_meta","portable_daily","daily_key","daily_meta","qr_login","portable_expedition","expedition_key","expedition_meta","graphics_enabled","render_resolution","render_width","render_height","target_fps","effect_enhance","veg_percent","render_path","render_capture","look_refresh"});
-        result.addRow(new Object[]{p.getBoolean("enabled",true)?1:0,p.getBoolean("capture",true)?1:0,p.getFloat("mouse_scale",0.02f),p.getFloat("touchpad_gain",0.25f),RootProxyService.port,RootProxyService.token,p.getBoolean("hide_uid",true)?1:0,p.getBoolean("focus_guard",true)?1:0,p.getBoolean("portable_craft",true)?1:0,p.getInt("craft_key",Shortcut.DEFAULT_KEY),p.getInt("craft_meta",0)&Shortcut.META_MASK,p.getBoolean("portable_daily",true)?1:0,p.getInt("daily_key",Shortcut.DEFAULT_DAILY_KEY),p.getInt("daily_meta",0)&Shortcut.META_MASK,p.getBoolean("qr_login",true)?1:0,p.getBoolean("portable_expedition",true)?1:0,p.getInt("expedition_key",Shortcut.DEFAULT_EXPEDITION_KEY),p.getInt("expedition_meta",0)&Shortcut.META_MASK,p.getBoolean("graphics_enabled",false)?1:0,p.getBoolean("render_resolution",false)?1:0,p.getInt("render_width",0),p.getInt("render_height",0),p.getInt("target_fps",0),p.getBoolean("effect_enhance",false)?1:0,p.getInt("veg_percent",100),p.getInt("render_path",3),renderCaptureToken,lookRefreshToken});
+        MatrixCursor result=new MatrixCursor(new String[]{"enabled","capture","mouse_scale","touchpad_gain","proxy_port","proxy_token","hide_uid","focus_guard","portable_craft","craft_key","craft_meta","portable_daily","daily_key","daily_meta","qr_login","portable_expedition","expedition_key","expedition_meta","graphics_enabled","render_resolution","render_width","render_height","target_fps","effect_enhance","veg_percent","render_path","render_capture","look_refresh","skip_team_loading"});
+        result.addRow(new Object[]{p.getBoolean("enabled",true)?1:0,p.getBoolean("capture",true)?1:0,p.getFloat("mouse_scale",0.02f),p.getFloat("touchpad_gain",0.25f),RootProxyService.port,RootProxyService.token,p.getBoolean("hide_uid",true)?1:0,p.getBoolean("focus_guard",true)?1:0,p.getBoolean("portable_craft",true)?1:0,p.getInt("craft_key",Shortcut.DEFAULT_KEY),p.getInt("craft_meta",0)&Shortcut.META_MASK,p.getBoolean("portable_daily",true)?1:0,p.getInt("daily_key",Shortcut.DEFAULT_DAILY_KEY),p.getInt("daily_meta",0)&Shortcut.META_MASK,p.getBoolean("qr_login",true)?1:0,p.getBoolean("portable_expedition",true)?1:0,p.getInt("expedition_key",Shortcut.DEFAULT_EXPEDITION_KEY),p.getInt("expedition_meta",0)&Shortcut.META_MASK,p.getBoolean("graphics_enabled",false)?1:0,p.getBoolean("render_resolution",false)?1:0,p.getInt("render_width",0),p.getInt("render_height",0),p.getInt("target_fps",0),p.getBoolean("effect_enhance",false)?1:0,p.getInt("veg_percent",100),p.getInt("render_path",3),renderCaptureToken,lookRefreshToken,p.getBoolean("skip_team_loading",true)?1:0});
         return result;
     }
     @Override public Bundle call(String method,String arg,Bundle extras){
@@ -56,8 +57,13 @@ public final class ConfigProvider extends ContentProvider {
             result.putIntArray("lookState",lastLookState);
             result.putIntArray("touchLookState",lastTouchLookState);
             result.putIntArray("mapMouseState",lastMapMouseState);
+            result.putIntArray("teamLoadingState",lastTeamLoadingState);
             result.putIntArray("focusState",lastFocusState);result.putIntArray("windowState",lastWindowState);
             return result;
+        }
+        if("set_skip_team_loading".equals(method)&&(Binder.getCallingUid()==0||Binder.getCallingUid()==Process.myUid())){
+            if(!"true".equals(arg)&&!"false".equals(arg))throw new IllegalArgumentException("Expected true or false");
+            Settings.preferences(getContext()).edit().putBoolean("skip_team_loading",Boolean.parseBoolean(arg)).commit();return Bundle.EMPTY;
         }
         if("set_enabled".equals(method)&&(Binder.getCallingUid()==0||Binder.getCallingUid()==Process.myUid())){
             if(!"true".equals(arg)&&!"false".equals(arg))throw new IllegalArgumentException("Expected true or false");
@@ -100,6 +106,7 @@ public final class ConfigProvider extends ContentProvider {
             Settings.preferences(getContext()).edit().putBoolean("hide_uid",Boolean.parseBoolean(arg)).apply();return Bundle.EMPTY;
         }
         checkCaller();
+        if("report".equals(method)&&extras!=null){int[] team=extras.getIntArray("teamLoadingState");if(team!=null&&team.length==7)lastTeamLoadingState=team;}
         if("report".equals(method)&&extras!=null){int[] look=extras.getIntArray("lookState");if(look!=null&&look.length==12)lastLookState=look;}
         if("report".equals(method)&&extras!=null){int[] touch=extras.getIntArray("touchLookState");if(touch!=null&&touch.length==3)lastTouchLookState=touch;}
         if("report".equals(method)&&extras!=null){int[] map=extras.getIntArray("mapMouseState");if(map!=null&&map.length==6)lastMapMouseState=map;}

@@ -23,7 +23,7 @@ import android.widget.Toast;
 
 public final class MainActivity extends Activity {
     private final Handler handler=new Handler(Looper.getMainLooper());
-    private TextView state,rootState,uidState,craftState,dailyState,expeditionState,graphicsState;
+    private TextView state,rootState,uidState,craftState,dailyState,expeditionState,graphicsState,teamLoadingState;
     private EditText mouse,touchpad;
     private SharedPreferences prefs;
     private Button shortcutButton,dailyShortcutButton,expeditionShortcutButton;
@@ -71,6 +71,9 @@ public final class MainActivity extends Activity {
         expeditionShortcutButton=button(layout,"设置快捷键 · "+expeditionShortcut(),v->recordShortcut("expedition"));
         text(layout,"默认数字键 7，可录制普通按键或组合键。在大世界打开原生探索派遣界面，派遣与领取由你在游戏内操作。",14);
         expeditionState=text(layout,"探索派遣等待游戏连接",14);
+        Switch teamLoading=new Switch(this);teamLoading.setText("取消打开队伍配置的读条");teamLoading.setTextColor(Color.WHITE);teamLoading.setChecked(prefs.getBoolean("skip_team_loading",true));teamLoading.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("skip_team_loading",c).apply());layout.addView(teamLoading);
+        text(layout,"页面就绪后跳过读条，保留游戏原本的队伍配置限制。约 1 秒生效，无需重新启动。",14);
+        teamLoadingState=text(layout,"队伍读条功能等待游戏连接",14);
         mouse=number(layout,"镜头基础倍率（默认 0.02）",prefs.getFloat("mouse_scale",.02f));
         touchpad=number(layout,"触控板独立倍率（默认 0.25）",prefs.getFloat("touchpad_gain",.25f));
         button(layout,"保存速度",v->{try{
@@ -102,6 +105,13 @@ public final class MainActivity extends Activity {
                 default:state.setText("模块已连接，等待游戏完成加载");
             }
         }else state.setText("等待原神连接 · 请确认 LSPosed 已启用");
+        int[] team=ConfigProvider.lastTeamLoadingState;
+        if(fresh&&team.length==7){
+            if(team[0]<0)teamLoadingState.setText("队伍读条功能加载失败 · "+team[0]);
+            else if(team[1]==0)teamLoadingState.setText("队伍读条保持原样");
+            else if(team[0]==1)teamLoadingState.setText("队伍读条已就绪 · 已跳过 "+team[3]+" 次");
+            else teamLoadingState.setText("队伍读条功能等待加载");
+        }else teamLoadingState.setText("队伍读条功能等待游戏连接");
         int[] u=ConfigProvider.lastUidState;
         if(fresh&&u.length==5){
             switch(u[0]){
