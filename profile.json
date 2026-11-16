@@ -269,5 +269,42 @@
       "rva": 243384524,
       "bytes": "28b441b9a800003528e441b91f0d0071"
     }
+  ],
+  "avatarFade": [
+    {
+      "name": "avatarFadeSetter",
+      "rva": 171087840,
+      "bytes": "68a605f0e10300aa08d967391f050071"
+    },
+    {
+      "name": "avatarFadeLayout",
+      "rva": 171087860,
+      "bytes": "e00301aa208401bd0b00001408a70590"
+    },
+    {
+      "name": "avatarFadeBinding",
+      "rva": 168435420,
+      "bytes": "740241f9d40400b475064091a8a25539"
+    },
+    {
+      "name": "avatarFadeCamera",
+      "rva": 168399864,
+      "bytes": "ff0301d1fe0b00f9f65702a9f44f03a9"
+    },
+    {
+      "name": "avatarFadeInline",
+      "rva": 168400056,
+      "bytes": "208401bddb400a94680241f9c80a00b4"
+    },
+    {
+      "name": "avatarFadeRecalculate",
+      "rva": 171087912,
+      "bytes": "fe0f1ef8f44f01a968a605f008a96839"
+    },
+    {
+      "name": "avatarFadeCombine",
+      "rva": 171087936,
+      "bytes": "006041bd018441bd085446390020211e"
+    }
   ]
 }

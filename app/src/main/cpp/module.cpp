@@ -77,6 +77,7 @@ bool classIs(P object,const char* name){
 #include "touch_look.hpp"
 #include "map_mouse.hpp"
 #include "team_loading.hpp"
+#include "avatar_fade.hpp"
 bool ready(P b){
     if((read<uint8_t>(b+0x158099bc)&1)==0)return false;
     P root=read<P>(b+profile::singletonRoot);
@@ -176,6 +177,7 @@ void tickHook(void* self,void* method){
             if(enabled){if(!applied||read<int>(manager+0x370)!=1||read<int>(input+0x1a4)!=2)apply(b);}
             else restore(b);
             updateLookFactors();
+            updateAvatarFade(b);
             cursor=read<int>(manager+0x340,1000);inputMode=read<int>(input+0x1a4,-1);
             updateUidVisibility(b);
             updateCrafting(b);
@@ -237,7 +239,7 @@ void install(P address){
     if(hookFunction(reinterpret_cast<void*>(address+profile::keyboardUpdate),reinterpret_cast<void*>(keyboardHook),reinterpret_cast<void**>(&originalKeyboard))!=0){stage=-2;log("Keyboard hook installation failed");return;}
     if(hookFunction(reinterpret_cast<void*>(address+profile::mouseUpdate),reinterpret_cast<void*>(mouseHook),reinterpret_cast<void**>(&originalMouse))!=0){stage=-2;log("Mouse hook installation failed");return;}
     if(hookFunction(reinterpret_cast<void*>(address+profile::tick),reinterpret_cast<void*>(tickHook),reinterpret_cast<void**>(&originalTick))!=0){stage=-2;log("Tick hook installation failed");return;}
-    base=address;stage=1;installLookFactors(address);installTouchLook(address);installMapMouse(address);installTeamLoading(address);installPhoto(address);installGraphics(address);log("Native hooks installed for pinned 7.2 ARM64 library");
+    base=address;stage=1;installLookFactors(address);installTouchLook(address);installMapMouse(address);installTeamLoading(address);installAvatarFade(address);installPhoto(address);installGraphics(address);log("Native hooks installed for pinned 7.2 ARM64 library");
 }
 int findModule(dl_phdr_info* info,size_t,void*){
     const char* name=info->dlpi_name;
@@ -389,4 +391,11 @@ extern "C" JNIEXPORT jintArray JNICALL Java_com_qi_vovotool_NativeBridge_renderS
         static_cast<jint>(renderGameScale.load()*1000000),static_cast<jint>(renderAppliedScale.load()*1000000),static_cast<jint>(renderScaleCalls.load()),renderScaleStatus.load(),
         renderReadbackWidth.load(),renderReadbackHeight.load(),static_cast<jint>(renderReadbacks.load()),static_cast<jint>(renderReadbackErrors.load())};
     jintArray result=env->NewIntArray(12);env->SetIntArrayRegion(result,0,12,values);return result;
+}
+
+extern "C" JNIEXPORT void JNICALL Java_com_qi_vovotool_NativeBridge_configureAvatarFade(JNIEnv*,jclass,jboolean active){avatarFadeEnabled=active;}
+extern "C" JNIEXPORT jintArray JNICALL Java_com_qi_vovotool_NativeBridge_avatarFadeState(JNIEnv* env,jclass){
+    jint values[]={avatarFadeStatus.load(),avatarFadeEnabled?1:0,avatarFadeCount.load(),static_cast<jint>(avatarFadeCalls.load()),
+        static_cast<jint>(avatarFadeOverrides.load()),static_cast<jint>(avatarFadeRestores.load()),avatarFadeRequested.load(),avatarFadeOutput.load()};
+    jintArray result=env->NewIntArray(8);env->SetIntArrayRegion(result,0,8,values);return result;
 }

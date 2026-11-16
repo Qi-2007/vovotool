@@ -45,4 +45,6 @@ public final class NativeBridge {
     public static native int[] mapMouseState();
     public static native void configureTeamLoading(boolean enabled);
     public static native int[] teamLoadingState();
+    public static native void configureAvatarFade(boolean enabled);
+    public static native int[] avatarFadeState();
 }

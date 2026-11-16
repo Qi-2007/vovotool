@@ -23,7 +23,7 @@ import android.widget.Toast;
 
 public final class MainActivity extends Activity {
     private final Handler handler=new Handler(Looper.getMainLooper());
-    private TextView state,rootState,uidState,craftState,dailyState,expeditionState,graphicsState,teamLoadingState;
+    private TextView state,rootState,uidState,craftState,dailyState,expeditionState,graphicsState,teamLoadingState,avatarFadeState;
     private EditText mouse,touchpad;
     private SharedPreferences prefs;
     private Button shortcutButton,dailyShortcutButton,expeditionShortcutButton;
@@ -74,6 +74,8 @@ public final class MainActivity extends Activity {
         Switch teamLoading=new Switch(this);teamLoading.setText("取消打开队伍配置的读条");teamLoading.setTextColor(Color.WHITE);teamLoading.setChecked(prefs.getBoolean("skip_team_loading",true));teamLoading.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("skip_team_loading",c).apply());layout.addView(teamLoading);
         text(layout,"页面就绪后跳过读条，保留游戏原本的队伍配置限制。约 1 秒生效，无需重新启动。",14);
         teamLoadingState=text(layout,"队伍读条功能等待游戏连接",14);
+        Switch avatarFade=new Switch(this);avatarFade.setText("反角色虚化（镜头靠近时保持可见）");avatarFade.setTextColor(Color.WHITE);avatarFade.setChecked(prefs.getBoolean("disable_character_fade",true));avatarFade.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("disable_character_fade",c).apply());layout.addView(avatarFade);
+        avatarFadeState=text(layout,"反角色虚化等待游戏连接",14);
         mouse=number(layout,"镜头基础倍率（默认 0.02）",prefs.getFloat("mouse_scale",.02f));
         touchpad=number(layout,"触控板独立倍率（默认 0.25）",prefs.getFloat("touchpad_gain",.25f));
         button(layout,"保存速度",v->{try{
@@ -105,6 +107,12 @@ public final class MainActivity extends Activity {
                 default:state.setText("模块已连接，等待游戏完成加载");
             }
         }else state.setText("等待原神连接 · 请确认 LSPosed 已启用");
+        int[] fade=ConfigProvider.lastAvatarFadeState;
+        if(fresh&&fade.length==8){
+            if(fade[0]<0)avatarFadeState.setText("反角色虚化加载失败 · "+fade[0]);
+            else if(fade[1]==0)avatarFadeState.setText("角色镜头虚化保持原样");
+            else avatarFadeState.setText(fade[2]>0?"反角色虚化已就绪":"等待场景角色");
+        }else avatarFadeState.setText("反角色虚化等待游戏连接");
         int[] team=ConfigProvider.lastTeamLoadingState;
         if(fresh&&team.length==7){
             if(team[0]<0)teamLoadingState.setText("队伍读条功能加载失败 · "+team[0]);
