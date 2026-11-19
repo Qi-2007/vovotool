@@ -23,7 +23,7 @@ import android.widget.Toast;
 
 public final class MainActivity extends Activity {
     private final Handler handler=new Handler(Looper.getMainLooper());
-    private TextView state,rootState,uidState,craftState,dailyState,expeditionState,graphicsState,teamLoadingState,avatarFadeState;
+    private TextView state,rootState,uidState,craftState,dailyState,expeditionState,graphicsState,teamLoadingState,avatarFadeState,avatarSwitchState;
     private EditText mouse,touchpad;
     private SharedPreferences prefs;
     private Button shortcutButton,dailyShortcutButton,expeditionShortcutButton;
@@ -76,6 +76,9 @@ public final class MainActivity extends Activity {
         teamLoadingState=text(layout,"队伍读条功能等待游戏连接",14);
         Switch avatarFade=new Switch(this);avatarFade.setText("反角色虚化（镜头靠近时保持可见）");avatarFade.setTextColor(Color.WHITE);avatarFade.setChecked(prefs.getBoolean("disable_character_fade",true));avatarFade.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("disable_character_fade",c).apply());layout.addView(avatarFade);
         avatarFadeState=text(layout,"反角色虚化等待游戏连接",14);
+        Switch avatarSwitch=new Switch(this);avatarSwitch.setText("取消切换角色冷却（实验）");avatarSwitch.setTextColor(Color.WHITE);avatarSwitch.setChecked(prefs.getBoolean("no_avatar_switch_cd",false));avatarSwitch.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("no_avatar_switch_cd",c).apply());layout.addView(avatarSwitch);
+        text(layout,"在大世界快速切人，并移除头像倒计时。约 1 秒生效，无需重启；极快连按仍可能被游戏拒绝。默认关闭。",14);
+        avatarSwitchState=text(layout,"切人冷却功能等待游戏连接",14);
         mouse=number(layout,"镜头基础倍率（默认 0.02）",prefs.getFloat("mouse_scale",.02f));
         touchpad=number(layout,"触控板独立倍率（默认 0.25）",prefs.getFloat("touchpad_gain",.25f));
         button(layout,"保存速度",v->{try{
@@ -107,6 +110,14 @@ public final class MainActivity extends Activity {
                 default:state.setText("模块已连接，等待游戏完成加载");
             }
         }else state.setText("等待原神连接 · 请确认 LSPosed 已启用");
+        int[] sw=ConfigProvider.lastAvatarSwitchState;
+        if(fresh&&sw.length==14){
+            if(sw[0]<0)avatarSwitchState.setText("切人冷却适配失败，本次未启用");
+            else if(sw[1]==0)avatarSwitchState.setText("切人冷却保持原样");
+            else if(!prefs.getBoolean("enabled",true))avatarSwitchState.setText("快速切人随模块主开关关闭");
+            else if(sw[0]==1)avatarSwitchState.setText("快速切人已启用 · 头像倒计时已移除");
+            else avatarSwitchState.setText("切人冷却功能等待加载");
+        }else avatarSwitchState.setText("切人冷却功能等待游戏连接");
         int[] fade=ConfigProvider.lastAvatarFadeState;
         if(fresh&&fade.length==8){
             if(fade[0]<0)avatarFadeState.setText("反角色虚化加载失败 · "+fade[0]);

@@ -47,4 +47,7 @@ public final class NativeBridge {
     public static native int[] teamLoadingState();
     public static native void configureAvatarFade(boolean enabled);
     public static native int[] avatarFadeState();
+    public static native void configureAvatarSwitch(boolean enabled);
+    public static native int[] avatarSwitchState();
+    public static native int[] avatarSwitchTraceState();
 }

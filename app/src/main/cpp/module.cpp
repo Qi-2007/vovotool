@@ -78,6 +78,7 @@ bool classIs(P object,const char* name){
 #include "map_mouse.hpp"
 #include "team_loading.hpp"
 #include "avatar_fade.hpp"
+#include "avatar_switch.hpp"
 bool ready(P b){
     if((read<uint8_t>(b+0x158099bc)&1)==0)return false;
     P root=read<P>(b+profile::singletonRoot);
@@ -239,7 +240,7 @@ void install(P address){
     if(hookFunction(reinterpret_cast<void*>(address+profile::keyboardUpdate),reinterpret_cast<void*>(keyboardHook),reinterpret_cast<void**>(&originalKeyboard))!=0){stage=-2;log("Keyboard hook installation failed");return;}
     if(hookFunction(reinterpret_cast<void*>(address+profile::mouseUpdate),reinterpret_cast<void*>(mouseHook),reinterpret_cast<void**>(&originalMouse))!=0){stage=-2;log("Mouse hook installation failed");return;}
     if(hookFunction(reinterpret_cast<void*>(address+profile::tick),reinterpret_cast<void*>(tickHook),reinterpret_cast<void**>(&originalTick))!=0){stage=-2;log("Tick hook installation failed");return;}
-    base=address;stage=1;installLookFactors(address);installTouchLook(address);installMapMouse(address);installTeamLoading(address);installAvatarFade(address);installPhoto(address);installGraphics(address);log("Native hooks installed for pinned 7.2 ARM64 library");
+    base=address;stage=1;installLookFactors(address);installTouchLook(address);installMapMouse(address);installTeamLoading(address);installAvatarFade(address);installAvatarSwitch(address);installPhoto(address);installGraphics(address);log("Native hooks installed for pinned 7.2 ARM64 library");
 }
 int findModule(dl_phdr_info* info,size_t,void*){
     const char* name=info->dlpi_name;
@@ -398,4 +399,17 @@ extern "C" JNIEXPORT jintArray JNICALL Java_com_qi_vovotool_NativeBridge_avatarF
     jint values[]={avatarFadeStatus.load(),avatarFadeEnabled?1:0,avatarFadeCount.load(),static_cast<jint>(avatarFadeCalls.load()),
         static_cast<jint>(avatarFadeOverrides.load()),static_cast<jint>(avatarFadeRestores.load()),avatarFadeRequested.load(),avatarFadeOutput.load()};
     jintArray result=env->NewIntArray(8);env->SetIntArrayRegion(result,0,8,values);return result;
+}
+
+extern "C" JNIEXPORT void JNICALL Java_com_qi_vovotool_NativeBridge_configureAvatarSwitch(JNIEnv*,jclass,jboolean active){avatarSwitchEnabled=active;}
+extern "C" JNIEXPORT jintArray JNICALL Java_com_qi_vovotool_NativeBridge_avatarSwitchState(JNIEnv* env,jclass){
+    jint values[]={avatarSwitchStatus.load(),avatarSwitchEnabled?1:0,static_cast<jint>(avatarSwitchCalls.load()),static_cast<jint>(avatarSwitchOverrides.load()),static_cast<jint>(avatarSwitchAccepted.load()),avatarSwitchLastFail.load(),static_cast<jint>(avatarSwitchMessages.load()),avatarSwitchMessageFail.load(),avatarSwitchMessageCaller.load(),static_cast<jint>(avatarSwitchRetCalls.load()),avatarSwitchRetCode.load(),avatarSwitchRetCaller.load(),static_cast<jint>(avatarSwitchRequests.load()),static_cast<jint>(avatarSwitchSent.load())};
+    jintArray result=env->NewIntArray(14);env->SetIntArrayRegion(result,0,14,values);return result;
+}
+
+extern "C" JNIEXPORT jintArray JNICALL Java_com_qi_vovotool_NativeBridge_avatarSwitchTraceState(JNIEnv* env,jclass){
+    jint values[14]={avatarSwitchTraceMask.load(),avatarSwitchTraceReason.load()};
+    values[12]=avatarSwitchToastCaller.load();values[13]=static_cast<jint>(avatarSwitchToasts.load());
+    for(int i=0;i<10;i++)values[i+2]=static_cast<jint>(avatarSwitchExitCounts[i].load());
+    jintArray result=env->NewIntArray(14);env->SetIntArrayRegion(result,0,14,values);return result;
 }

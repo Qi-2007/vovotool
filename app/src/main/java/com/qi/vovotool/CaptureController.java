@@ -69,6 +69,7 @@ public final class CaptureController {
                 int port=c.getInt(c.getColumnIndexOrThrow("proxy_port"));
                 String token=c.getString(c.getColumnIndexOrThrow("proxy_token"));
                 NativeBridge.configure(enabled,scale,capture,port,token,gain);
+                NativeBridge.configureAvatarSwitch(c.getInt(c.getColumnIndexOrThrow("no_avatar_switch_cd"))!=0);
                 NativeBridge.configureAvatarFade(c.getInt(c.getColumnIndexOrThrow("disable_character_fade"))!=0);
                 NativeBridge.configureTeamLoading(c.getInt(c.getColumnIndexOrThrow("skip_team_loading"))!=0);
                 NativeBridge.configureUid(c.getInt(c.getColumnIndexOrThrow("hide_uid"))!=0);
@@ -96,6 +97,8 @@ public final class CaptureController {
             report.putIntArray("mapMouseState",NativeBridge.mapMouseState());
             report.putIntArray("teamLoadingState",NativeBridge.teamLoadingState());
             report.putIntArray("avatarFadeState",NativeBridge.avatarFadeState());
+            report.putIntArray("avatarSwitchState",NativeBridge.avatarSwitchState());
+            report.putIntArray("avatarSwitchTraceState",NativeBridge.avatarSwitchTraceState());
             String probe=NativeBridge.renderProbe();if(!"{}".equals(probe)&&!probe.equals(lastRenderProbe)){report.putString("renderProbe",probe);lastRenderProbe=probe;}
             report.putIntArray("qrState",QrLoginBridge.state());
             report.putIntArray("uidState",NativeBridge.uidState());

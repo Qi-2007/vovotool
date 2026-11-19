@@ -306,5 +306,102 @@
       "rva": 171087936,
       "bytes": "006041bd018441bd085446390020211e"
     }
+  ],
+  "avatarSwitch": [
+    {
+      "name": "avatarSwitchCheck",
+      "rva": 196584784,
+      "bytes": "ff8303d1ea3300fde923076dfd7b08a9"
+    },
+    {
+      "name": "avatarSwitchFlag",
+      "rva": 196585456,
+      "bytes": "e00900367ae404f048d342f9dd090036"
+    },
+    {
+      "name": "avatarSwitchCooldown",
+      "rva": 196585780,
+      "bytes": "098891521c6969f829bb8097fc1100b4"
+    },
+    {
+      "name": "avatarSwitchMessage",
+      "rva": 196388652,
+      "bytes": "fe0f1ef8f44f01a9b3fe04f0689e6139"
+    },
+    {
+      "name": "avatarSwitchRequest",
+      "rva": 216065552,
+      "bytes": "ff8302d1fd7b04a9fc6f05a9fa6706a9"
+    },
+    {
+      "name": "avatarSwitchRate",
+      "rva": 216066036,
+      "bytes": "61ea41bd0040621e0038211e01714dbd"
+    },
+    {
+      "name": "avatarSwitchReady",
+      "rva": 216075252,
+      "bytes": "fe4fbfa9284d04b0f30300aa082d5d39"
+    },
+    {
+      "name": "avatarSwitchReadyLayout",
+      "rva": 216075276,
+      "bytes": "93a51d9761ea41bd28b4f9900038211e"
+    },
+    {
+      "name": "switchTraceUi",
+      "rva": 236899020,
+      "bytes": "ffc300d1fe7f01a9f44f02a988ae03f0"
+    },
+    {
+      "name": "switchTraceData",
+      "rva": 216283576,
+      "bytes": "ffc301d1fd7b01a9fc6f02a9fa6703a9"
+    },
+    {
+      "name": "switchTraceCurrent",
+      "rva": 132546336,
+      "bytes": "fe0f1ff848c806b0e10300aa08055c39"
+    },
+    {
+      "name": "switchTraceTarget",
+      "rva": 132637748,
+      "bytes": "ffc301d1fd7b01a9fc6f02a9fa6703a9"
+    },
+    {
+      "name": "switchTraceSend",
+      "rva": 248165408,
+      "bytes": "ea0f1bfce923016dfe5f02a9f65703a9"
+    },
+    {
+      "name": "switchTraceToast",
+      "rva": 133922808,
+      "bytes": "fe57bea9f44f01a988bf06d089c206b0"
+    },
+    {
+      "name": "switchTraceWarning",
+      "rva": 239257852,
+      "bytes": "fe0f1ff8e99b03d0ea9e03b0e803022a"
+    },
+    {
+      "name": "switchTraceInfo",
+      "rva": 239180184,
+      "bytes": "fe0f1ff8889c03b0899f0390e40303aa"
+    },
+    {
+      "name": "switchTraceInput",
+      "rva": 216146012,
+      "bytes": "ff0301d1fe5f01a9f65702a9f44f03a9"
+    },
+    {
+      "name": "switchTraceResponse",
+      "rva": 215956164,
+      "bytes": "fe57bea9f44f01a9346904b0f30300aa"
+    },
+    {
+      "name": "switchTraceCooldown",
+      "rva": 216071988,
+      "bytes": "e923bd6dfe5701a9f44f02a9284d04d0"
+    }
   ]
 }

@@ -24,6 +24,7 @@ touch_targets={'touchRotate':0xcc6f6c8}
 map_mouse_targets={'mapUpdateTouches':0x97dad60,'mapMouseHeld':0x4a92efc,'mapMouseDown':0x4a92f3c,'mapMouseUp':0x4a92f70}
 team_loading_targets={'teamLoadingMoveNext':0x128f4590,'teamLoadingLayout':0x128f465c,'teamLoadingReady':0xe81c0cc}
 avatar_fade_targets={'avatarFadeSetter':0xa3297e0,'avatarFadeLayout':0xa3297f4,'avatarFadeBinding':0xa0a1edc,'avatarFadeCamera':0xa0993f8,'avatarFadeInline':0xa0994b8,'avatarFadeRecalculate':0xa329828,'avatarFadeCombine':0xa329840}
+avatar_switch_targets={'avatarSwitchCheck':0xbb7a550,'avatarSwitchFlag':0xbb7a7f0,'avatarSwitchCooldown':0xbb7a934,'avatarSwitchMessage':0xbb4a72c,'avatarSwitchRequest':0xce0e610,'avatarSwitchRate':0xce0e7f4,'avatarSwitchReady':0xce10bf4,'avatarSwitchReadyLayout':0xce10c0c,'switchTraceUi':0xe1ecacc,'switchTraceData':0xce439b8,'switchTraceCurrent':0x7e67f20,'switchTraceTarget':0x7e7e434,'switchTraceSend':0xecab420,'switchTraceToast':0x7fb7ff8,'switchTraceWarning':0xe42c8fc,'switchTraceInfo':0xe419998,'switchTraceInput':0xce2205c,'switchTraceResponse':0xcdf3ac4,'switchTraceCooldown':0xce0ff34}
 rows=[]
 with library.open('rb') as f:
  for name,rva in targets.items():
@@ -68,6 +69,11 @@ with library.open('rb') as f:
  for name,rva in avatar_fade_targets.items():
   f.seek(rva);fades.append({'name':name,'rva':rva,'bytes':f.read(16).hex()})
 for row in fades:text+=f'inline constexpr uintptr_t {row["name"]}=0x{row["rva"]:x};\n'
+switches=[]
+with library.open('rb') as f:
+ for name,rva in avatar_switch_targets.items():
+  f.seek(rva);switches.append({'name':name,'rva':rva,'bytes':f.read(16).hex()})
+for row in switches:text+=f'inline constexpr uintptr_t {row["name"]}=0x{row["rva"]:x};\n'
 text+='struct Pin { uintptr_t rva; unsigned char bytes[16]; };\ninline constexpr Pin pins[]={\n'
 for row in rows:text+='{0x%x,{%s}},\n'%(row['rva'],','.join('0x'+row['bytes'][i:i+2] for i in range(0,32,2)))
 text+='};\ninline constexpr Pin graphicsPins[]={\n'
@@ -84,7 +90,9 @@ text+='};\ninline constexpr Pin teamLoadingPins[]={\n'
 for row in teams:text+='{0x%x,{%s}},\n'%(row['rva'],','.join('0x'+row['bytes'][i:i+2] for i in range(0,32,2)))
 text+='};\ninline constexpr Pin avatarFadePins[]={\n'
 for row in fades:text+='{0x%x,{%s}},\n'%(row['rva'],','.join('0x'+row['bytes'][i:i+2] for i in range(0,32,2)))
+text+='};\ninline constexpr Pin avatarSwitchPins[]={\n'
+for row in switches:text+='{0x%x,{%s}},\n'%(row['rva'],','.join('0x'+row['bytes'][i:i+2] for i in range(0,32,2)))
 text+='};\n}\n'
 p=ROOT/'app/src/main/cpp/profile.hpp';p.parent.mkdir(parents=True,exist_ok=True);p.write_text(text)
-(ROOT/'profile.json').write_text(json.dumps({'version':'7.2.0_48751704_49008628','arch':'arm64-v8a','functions':rows,'graphics':graphics,'photo':photos,'look':looks,'touch':touches,'mapMouse':map_mouse,'teamLoading':teams,'avatarFade':fades},indent=2))
+(ROOT/'profile.json').write_text(json.dumps({'version':'7.2.0_48751704_49008628','arch':'arm64-v8a','functions':rows,'graphics':graphics,'photo':photos,'look':looks,'touch':touches,'mapMouse':map_mouse,'teamLoading':teams,'avatarFade':fades,'avatarSwitch':switches},indent=2))
 print('Generated version-specific profile')
