@@ -37,14 +37,16 @@ final class GraphicsSettings {
         if(resolution&&Math.abs(((float)w/h)/((float)nw/nh)-1)>.1f)return "分辨率比例偏离屏幕原生比例超过 10%";
         return null;
     }
-    private static TextView label(Context c,LinearLayout parent,String value,int size){TextView t=new TextView(c);t.setText(value);t.setTextColor(Color.WHITE);t.setTextSize(size);t.setPadding(0,14,0,14);parent.addView(t);return t;}
+    private static TextView label(Context c,LinearLayout parent,String value,int size){TextView t=new TextView(c);t.setText(value);t.setTextColor(Color.WHITE);t.setTextSize(size);int inset=Math.round(8*c.getResources().getDisplayMetrics().density);t.setPadding(0,inset,0,inset);parent.addView(t);return t;}
     private static Switch toggle(Context c,LinearLayout parent,String title,boolean checked){Switch s=new Switch(c);s.setText(title);s.setTextColor(Color.WHITE);s.setChecked(checked);parent.addView(s);return s;}
     private static EditText integer(Context c,LinearLayout parent,String title,int value){label(c,parent,title,16);EditText e=new EditText(c);e.setInputType(2);e.setTextColor(Color.WHITE);e.setText(Integer.toString(value));parent.addView(e);return e;}
-    static TextView add(Context c,LinearLayout parent,SharedPreferences p){
+    static TextView add(Context c,LinearLayout root,SharedPreferences p,MaterialUi ui){
+        LinearLayout parent=ui.card(root);
         int[] n=screen(c);
         label(c,parent,"图形设置",22);
         label(c,parent,"设置会保存，重启原神后由模块自动应用。分辨率及特效增强需要 Vulkan 渲染。屏幕原生："+n[0]+"×"+n[1],14);
         Switch active=toggle(c,parent,"启用自定义图形设置",p.getBoolean("graphics_enabled",false));
+        parent=ui.card(root);
         Switch resolution=toggle(c,parent,"自定义渲染分辨率",p.getBoolean("render_resolution",false));
         EditText width=integer(c,parent,"渲染宽度",p.getInt("render_width",n[0]&~3));
         EditText height=integer(c,parent,"渲染高度",p.getInt("render_height",n[1]&~3));
@@ -70,15 +72,21 @@ final class GraphicsSettings {
         });
         TextWatcher dimensions=new TextWatcher(){public void beforeTextChanged(CharSequence s,int start,int count,int after){}public void onTextChanged(CharSequence s,int start,int before,int count){}public void afterTextChanged(Editable s){if(!scaling[0])syncScale.run();}};
         width.addTextChangedListener(dimensions);height.addTextChangedListener(dimensions);syncScale.run();
+        parent=ui.card(root);
         label(c,parent,"帧率上限（实际帧率取决于设备和游戏负载）",16);
         Spinner fps=new Spinner(c);String[] names=new String[FPS.length];int selection=0;
         for(int i=0;i<FPS.length;i++){names[i]=FPS[i]==0?"跟随游戏":FPS[i]+" FPS";if(FPS[i]==p.getInt("target_fps",0))selection=i;}
         ArrayAdapter<String> adapter=new ArrayAdapter<>(c,android.R.layout.simple_spinner_item,names);adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);fps.setAdapter(adapter);fps.setSelection(selection);parent.addView(fps);
+        parent=ui.card(root);
         Switch effects=toggle(c,parent,"特效增强（提高部分特效渲染尺寸）",p.getBoolean("effect_enhance",false));
+        label(c,parent,"提高部分特效渲染尺寸，会增加 GPU 负载。",14);
+        parent=ui.card(root);
         TextView vegLabel=label(c,parent,"植被及关联距离："+p.getInt("veg_percent",100)+"%（100% 为游戏原值）",16);
         SeekBar veg=new SeekBar(c);veg.setMax(18);veg.setProgress((p.getInt("veg_percent",100)-10)/5);parent.addView(veg);
         veg.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){public void onStartTrackingTouch(SeekBar s){}public void onStopTrackingTouch(SeekBar s){}public void onProgressChanged(SeekBar s,int value,boolean user){vegLabel.setText("植被及关联距离："+(10+value*5)+"%（100% 为游戏原值）");}});
-        label(c,parent,"距离设置与参考模块一致，也影响地形、阴影、视距和部分纹理预算。特效增强会增加 GPU 负载。",14);
+        label(c,parent,"距离设置也影响地形、阴影、视距和部分纹理预算。",14);
+        parent=ui.card(root);
+        label(c,parent,"保存与应用",20);
         TextView status=label(c,parent,"图形设置等待游戏连接",14);
         Button save=new Button(c);save.setText("保存图形设置（下次启动原神生效）");parent.addView(save);
         save.setOnClickListener(v->{try{

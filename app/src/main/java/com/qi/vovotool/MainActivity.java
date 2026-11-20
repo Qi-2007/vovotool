@@ -6,6 +6,8 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.view.Gravity;
+import android.widget.FrameLayout;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -22,6 +24,14 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 public final class MainActivity extends Activity {
+    private LinearLayout homePage,managePage,aboutPage;
+    private FloatingNavigation navigation;
+    private boolean navigationReady;
+    private final LinearLayout[] categories=new LinearLayout[4];
+    private CategoryTabs categoryTabs;
+    private FrameLayout pages;
+    private int selectedPage,selectedCategory;
+    private MaterialUi ui;
     private final Handler handler=new Handler(Looper.getMainLooper());
     private TextView state,rootState,uidState,craftState,dailyState,expeditionState,graphicsState,teamLoadingState,avatarFadeState,avatarSwitchState;
     private EditText mouse,touchpad;
@@ -44,41 +54,60 @@ public final class MainActivity extends Activity {
         ("expedition".equals(feature)?expeditionShortcutButton:"daily".equals(feature)?dailyShortcutButton:shortcutButton).setText("请按快捷键（Esc 取消）");
     }
     private int dp(int value){return (int)(getResources().getDisplayMetrics().density*value+.5f);}
-    private TextView text(LinearLayout parent,String value,int size){TextView t=new TextView(this);t.setText(value);t.setTextSize(size);t.setTextColor(Color.rgb(225,232,241));t.setPadding(0,dp(8),0,dp(8));parent.addView(t);return t;}
+    private TextView text(LinearLayout parent,String value,int size){TextView t=new TextView(this);t.setText(value);t.setTextSize(size);t.setTextColor(ui.ink);t.setPadding(0,dp(8),0,dp(8));parent.addView(t);return t;}
     private Button button(LinearLayout parent,String title,View.OnClickListener action){Button b=new Button(this);b.setText(title);b.setOnClickListener(action);parent.addView(b,new LinearLayout.LayoutParams(-1,dp(54)));return b;}
-    private EditText number(LinearLayout parent,String title,float value){text(parent,title,17);EditText e=new EditText(this);e.setText(Float.toString(value));e.setTextColor(Color.WHITE);e.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL);parent.addView(e);return e;}
+    private EditText number(LinearLayout parent,String title,float value){text(parent,title,17);EditText e=new EditText(this);e.setText(Float.toString(value));e.setTextColor(ui.ink);e.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL);parent.addView(e);return e;}
     @Override public void onCreate(Bundle saved){
         super.onCreate(saved);prefs=Settings.preferences(this);Settings.grantGameAccess(this);
-        ScrollView scroll=new ScrollView(this);scroll.setBackgroundColor(Color.rgb(19,28,42));
-        LinearLayout layout=new LinearLayout(this);layout.setOrientation(LinearLayout.VERTICAL);layout.setPadding(dp(24),dp(24),dp(24),dp(24));scroll.addView(layout);setContentView(scroll);
-        text(layout,"沃沃头",28);
-        text(layout,"在 LSPosed 中启用本模块，作用域只勾选「原神」。当前适配国服 7.2 ARM64。",16);
-        state=text(layout,"等待游戏连接",17);
+        ui=new MaterialUi(this);
+        buildShell();
+        LinearLayout layout=card(homePage);
+        text(layout,"模块状态",14);
+        state=text(layout,"等待游戏连接",20);
+        text(layout,"在 LSPosed 中启用本模块，作用域勾选「原神」。",14);
+        button(layout,"打开原神",v->openGame());
+        LinearLayout intro=card(homePage);
+        text(intro,"让操作更顺手",22);
+        text(intro,"画面、操控与便携工具，在管理页集中调整。",15);
+        button(intro,"管理功能",v->selectPage(1));
+        text(homePage,"当前适配 · 国服 7.2 / ARM64",13);
+        layout=card(categories[1]);
         Switch enabled=new Switch(this);enabled.setText("启用 PC 界面与原生键鼠");enabled.setTextColor(Color.WHITE);enabled.setChecked(prefs.getBoolean("enabled",true));enabled.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("enabled",c).apply());layout.addView(enabled);
-        Switch capture=new Switch(this);capture.setText("镜头捕获指针，菜单自动释放");capture.setTextColor(Color.WHITE);capture.setChecked(prefs.getBoolean("capture",true));capture.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("capture",c).apply());layout.addView(capture);
+        layout=card(categories[1]);
+        Switch capture=new Switch(this);capture.setText("镜头捕获指针，菜单自动释放");capture.setTextColor(ui.ink);capture.setChecked(prefs.getBoolean("capture",true));capture.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("capture",c).apply());layout.addView(capture);
+        layout=card(categories[3]);
         Switch hideUid=new Switch(this);hideUid.setText("隐藏 UID（右下角及派蒙菜单）");hideUid.setTextColor(Color.WHITE);hideUid.setChecked(prefs.getBoolean("hide_uid",true));hideUid.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("hide_uid",c).apply());layout.addView(hideUid);
         uidState=text(layout,"等待 UID 显示组件",14);
+        layout=card(categories[3]);
         Switch qr=new Switch(this);qr.setText("登录弹窗显示扫码登录入口（实验）");qr.setTextColor(Color.WHITE);qr.setChecked(prefs.getBoolean("qr_login",true));qr.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("qr_login",c).apply());layout.addView(qr);
+        layout=card(categories[2]);
         Switch craft=new Switch(this);craft.setText("随身合成台");craft.setTextColor(Color.WHITE);craft.setChecked(prefs.getBoolean("portable_craft",true));craft.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("portable_craft",c).apply());layout.addView(craft);
         shortcutButton=button(layout,"设置快捷键 · "+craftShortcut(),v->recordShortcut("craft"));
         text(layout,"支持普通按键及 Ctrl、Alt、Shift 组合键。保存后约 1 秒在游戏中生效；在大世界可操作状态下使用。",14);
         craftState=text(layout,"随身合成台已就绪",14);
+        layout=card(categories[2]);
         Switch daily=new Switch(this);daily.setText("随身领取日委奖励");daily.setTextColor(Color.WHITE);daily.setChecked(prefs.getBoolean("portable_daily",true));daily.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("portable_daily",c).apply());layout.addView(daily);
         dailyShortcutButton=button(layout,"设置快捷键 · "+dailyShortcut(),v->recordShortcut("daily"));
         text(layout,"在大世界按快捷键领取已满足条件的日委奖励。若游戏弹出确认界面，请在游戏内确认；不会自动重试。",14);
         dailyState=text(layout,"日委领取等待游戏连接",14);
+        layout=card(categories[2]);
         Switch expedition=new Switch(this);expedition.setText("随身探索派遣");expedition.setTextColor(Color.WHITE);expedition.setChecked(prefs.getBoolean("portable_expedition",true));expedition.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("portable_expedition",c).apply());layout.addView(expedition);
         expeditionShortcutButton=button(layout,"设置快捷键 · "+expeditionShortcut(),v->recordShortcut("expedition"));
         text(layout,"默认数字键 7，可录制普通按键或组合键。在大世界打开原生探索派遣界面，派遣与领取由你在游戏内操作。",14);
         expeditionState=text(layout,"探索派遣等待游戏连接",14);
+        layout=card(categories[3]);
         Switch teamLoading=new Switch(this);teamLoading.setText("取消打开队伍配置的读条");teamLoading.setTextColor(Color.WHITE);teamLoading.setChecked(prefs.getBoolean("skip_team_loading",true));teamLoading.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("skip_team_loading",c).apply());layout.addView(teamLoading);
         text(layout,"页面就绪后跳过读条，保留游戏原本的队伍配置限制。约 1 秒生效，无需重新启动。",14);
         teamLoadingState=text(layout,"队伍读条功能等待游戏连接",14);
-        Switch avatarFade=new Switch(this);avatarFade.setText("反角色虚化（镜头靠近时保持可见）");avatarFade.setTextColor(Color.WHITE);avatarFade.setChecked(prefs.getBoolean("disable_character_fade",true));avatarFade.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("disable_character_fade",c).apply());layout.addView(avatarFade);
+        layout=card(categories[0]);
+        Switch avatarFade=new Switch(this);avatarFade.setText("反角色虚化（镜头靠近时保持可见）");avatarFade.setTextColor(ui.ink);avatarFade.setChecked(prefs.getBoolean("disable_character_fade",true));avatarFade.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("disable_character_fade",c).apply());layout.addView(avatarFade);
         avatarFadeState=text(layout,"反角色虚化等待游戏连接",14);
+        layout=card(categories[3]);
         Switch avatarSwitch=new Switch(this);avatarSwitch.setText("取消切换角色冷却（实验）");avatarSwitch.setTextColor(Color.WHITE);avatarSwitch.setChecked(prefs.getBoolean("no_avatar_switch_cd",false));avatarSwitch.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("no_avatar_switch_cd",c).apply());layout.addView(avatarSwitch);
         text(layout,"在大世界快速切人，并移除头像倒计时。约 1 秒生效，无需重启；极快连按仍可能被游戏拒绝。默认关闭。",14);
         avatarSwitchState=text(layout,"切人冷却功能等待游戏连接",14);
+        layout=card(categories[1]);
+        text(layout,"镜头速度",20);
         mouse=number(layout,"镜头基础倍率（默认 0.02）",prefs.getFloat("mouse_scale",.02f));
         touchpad=number(layout,"触控板独立倍率（默认 0.25）",prefs.getFloat("touchpad_gain",.25f));
         button(layout,"保存速度",v->{try{
@@ -86,7 +115,8 @@ public final class MainActivity extends Activity {
             if(!Float.isFinite(m)||m<.0001f||m>2||!Float.isFinite(t)||t<.05f||t>2)throw new IllegalArgumentException();
             prefs.edit().putFloat("mouse_scale",m).putFloat("touchpad_gain",t).apply();Toast.makeText(this,"已保存，游戏内约 1 秒后生效",Toast.LENGTH_SHORT).show();
         }catch(Exception e){Toast.makeText(this,"基础倍率范围 0.0001～2；触控板倍率范围 0.05～2",Toast.LENGTH_LONG).show();}});
-        graphicsState=GraphicsSettings.add(this,layout,prefs);
+        graphicsState=GraphicsSettings.add(this,categories[0],prefs,ui);
+        layout=card(categories[1]);
         text(layout,"触控板兼容",22);
         text(layout,"外接鼠标无需启动此项。Lenovo 键盘套触控板需要 root 授权；游戏菜单继续使用系统触控板。",16);
         rootState=text(layout,"未启动",16);
@@ -95,9 +125,90 @@ public final class MainActivity extends Activity {
             startForegroundService(new Intent(this,RootProxyService.class));
         });
         button(layout,"停止触控板兼容",v->stopService(new Intent(this,RootProxyService.class)));
-        button(layout,"打开原神",v->{Intent game=getPackageManager().getLaunchIntentForPackage(Settings.GAME);if(game!=null)startActivity(game);else Toast.makeText(this,"未找到原神",Toast.LENGTH_SHORT).show();});
-        text(layout,"关闭上方开关可恢复本次进程的输入基线；完整重载界面请重新启动游戏。模块不修改游戏文件或系统分区。",14);
+
+        text(layout,"关闭操控主开关可恢复本次进程的输入基线；完整重载界面请重新启动游戏。模块不修改游戏文件或系统分区。",14);
+        ui.styleTree(pages);
+        selectCategory(saved==null?0:saved.getInt("category",0));
+        selectPage(saved==null?0:saved.getInt("page",0));
     }
+    private void openGame(){
+        Intent game=getPackageManager().getLaunchIntentForPackage(Settings.GAME);
+        if(game!=null)startActivity(game);else Toast.makeText(this,"未找到原神",Toast.LENGTH_SHORT).show();
+    }
+    private LinearLayout column(){LinearLayout v=new LinearLayout(this);v.setOrientation(LinearLayout.VERTICAL);return v;}
+    private LinearLayout card(LinearLayout parent){return ui.card(parent);}
+    private LinearLayout page(String title,String subtitle){
+        ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);scroll.setClipToPadding(false);
+        LinearLayout content=column();content.setPadding(dp(24),dp(16),dp(24),dp(24));scroll.addView(content);pages.addView(scroll);
+        text(content,title,32).setTypeface(null,android.graphics.Typeface.BOLD);
+        text(content,subtitle,14);return content;
+    }
+    private void buildShell(){
+        getWindow().setStatusBarColor(ui.background);getWindow().setNavigationBarColor(ui.background);
+        if(!ui.dark)getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR|View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+        LinearLayout shell=column();shell.setBackgroundColor(ui.background);
+        shell.setOnApplyWindowInsetsListener((v,insets)->{v.setPadding(insets.getSystemWindowInsetLeft(),insets.getSystemWindowInsetTop(),insets.getSystemWindowInsetRight(),insets.getSystemWindowInsetBottom());return insets.consumeSystemWindowInsets();});
+        pages=new FrameLayout(this);shell.addView(pages,new LinearLayout.LayoutParams(-1,0,1));
+        homePage=page("沃沃头","为你的冒险，添一点顺手。 ");
+        managePage=page("管理","按场景整理，按习惯调整。");
+        String[] titles={"画面","操控","便携功能","其他功能"};
+        String[] descriptions={"分辨率、帧率与画面效果","原生键鼠、镜头速度与触控板","合成、日委奖励与探索派遣","界面显示与实验功能"};
+        categoryTabs=new CategoryTabs(this,ui,titles,index->selectCategory(index));
+        managePage.addView(categoryTabs);
+        for(int i=0;i<4;i++){
+            categories[i]=column();managePage.addView(categories[i],new LinearLayout.LayoutParams(-1,-2));
+            TextView description=text(categories[i],descriptions[i],14);description.setPadding(0,0,0,dp(16));
+        }
+        aboutPage=page("关于","简单、直接，专注每一次操作。");
+        LinearLayout app=card(aboutPage);
+        android.widget.ImageView logo=new android.widget.ImageView(this);logo.setImageDrawable(getApplicationInfo().loadIcon(getPackageManager()));app.addView(logo,new LinearLayout.LayoutParams(dp(64),dp(64)));
+        text(app,"沃沃头",24);
+        try{text(app,"版本 "+getPackageManager().getPackageInfo(getPackageName(),0).versionName+" · UI 预览",14);}catch(Exception ignored){}
+        text(app,getPackageName(),14);
+        LinearLayout info=card(aboutPage);text(info,"使用说明",20);text(info,"在 LSPosed 中启用沃沃头，作用域仅勾选原神。更新模块后，请重新启动游戏。",15);text(info,"图形设置保存后，下次启动原神生效。其他开关和快捷键通常约 1 秒生效。",15);
+        text(info,"模块不修改游戏文件或系统分区。",14);
+        FrameLayout navHost=new FrameLayout(this);
+        navigation=new FloatingNavigation(this,ui,index->selectPage(index));
+        FrameLayout.LayoutParams navParams=new FrameLayout.LayoutParams(-1,dp(72),Gravity.CENTER);
+        navParams.setMargins(dp(24),dp(8),dp(24),dp(16));navHost.addView(navigation,navParams);
+        navHost.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->{
+            int width=Math.min(dp(420),Math.max(0,r-l-dp(48)));
+            if(navigation.getLayoutParams().width!=width){navigation.getLayoutParams().width=width;navigation.requestLayout();}
+        });
+        shell.addView(navHost,new LinearLayout.LayoutParams(-1,dp(96)));
+        setContentView(shell);
+    }
+    private void reveal(View view,boolean animate,int direction){
+        view.animate().cancel();view.setAlpha(1);view.setTranslationX(0);view.setTranslationY(0);
+        if(animate&&android.animation.ValueAnimator.areAnimatorsEnabled()){
+            view.setAlpha(0);view.setTranslationX(dp(18)*direction);
+            view.animate().alpha(1).translationX(0).setDuration(260).setInterpolator(new android.view.animation.PathInterpolator(.2f,0,0,1)).start();
+        }
+    }
+    private void selectPage(int page){
+        int target=Math.max(0,Math.min(2,page)),previous=selectedPage;
+        boolean animate=navigationReady&&previous!=target;
+        recordingShortcut=false;resetShortcutButtons();selectedPage=target;
+        for(int i=0;i<3;i++){
+            View child=pages.getChildAt(i);child.animate().cancel();child.setAlpha(1);child.setTranslationX(0);
+            child.setVisibility(i==selectedPage?View.VISIBLE:View.GONE);
+        }
+        if(animate)reveal(pages.getChildAt(target),true,target>previous?1:-1);
+        navigation.select(target,animate);navigationReady=true;
+    }
+    private void selectCategory(int category){
+        int target=Math.max(0,Math.min(3,category)),previous=selectedCategory;
+        recordingShortcut=false;resetShortcutButtons();selectedCategory=target;
+        for(int i=0;i<4;i++){
+            categories[i].animate().cancel();categories[i].setAlpha(1);categories[i].setTranslationX(0);
+            categories[i].setVisibility(i==selectedCategory?View.VISIBLE:View.GONE);
+        }
+        boolean animate=navigationReady&&previous!=target;
+        categoryTabs.select(target,animate);
+        reveal(categories[target],animate,target>previous?1:-1);
+    }
+    @Override protected void onSaveInstanceState(Bundle out){super.onSaveInstanceState(out);out.putInt("page",selectedPage);out.putInt("category",selectedCategory);}
+
     private final Runnable refresh=new Runnable(){public void run(){
         int[] s=ConfigProvider.lastState;boolean fresh=System.currentTimeMillis()-ConfigProvider.lastReport<4000;
         if(fresh && s.length>0){
