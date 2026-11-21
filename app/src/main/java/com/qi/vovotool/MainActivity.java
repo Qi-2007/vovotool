@@ -27,7 +27,7 @@ public final class MainActivity extends Activity {
     private LinearLayout homePage,managePage,aboutPage;
     private FloatingNavigation navigation;
     private boolean navigationReady;
-    private final LinearLayout[] categories=new LinearLayout[4];
+    private final LinearLayout[] categories=new LinearLayout[5];
     private CategoryTabs categoryTabs;
     private SwipePages pages,categoryPages;
     private int selectedPage,selectedCategory;
@@ -145,7 +145,7 @@ public final class MainActivity extends Activity {
         updateDeveloperUi();
         selectCategory(selectedCategory);
     }
-    private void updateDeveloperUi(){categoryTabs.setAvailableCount(2+developerMode.level());}
+    private void updateDeveloperUi(){categoryTabs.setAvailableCount(DeveloperMode.visibleCategoryCount(developerMode.level()));}
     private final Runnable finishLogoTaps=()->{
         if(selectedPage!=2)return;
         int action=developerMode.finishTaps(android.os.SystemClock.elapsedRealtime());
@@ -201,15 +201,16 @@ public final class MainActivity extends Activity {
         pages=new SwipePages(this,index->selectPage(index));shell.addView(pages,new LinearLayout.LayoutParams(-1,0,1));
         homePage=page("沃沃头","为你的冒险，添一点顺手。 ");
         managePage=page("管理","按场景整理，按习惯调整。");
-        String[] titles={"画面","操控","便携功能","其他功能"};
-        String[] descriptions={"分辨率、帧率与画面效果","原生键鼠、镜头速度与触控板","合成、日委奖励与探索派遣","界面显示与实验功能"};
+        String[] titles={"画面","操控","便携功能","其他功能","实验功能"};
+        String[] descriptions={"分辨率、帧率与画面效果","原生键鼠、镜头速度与触控板","合成、日委奖励与探索派遣","界面显示与便捷设置",""};
         categoryTabs=new CategoryTabs(this,ui,titles,index->selectCategory(index));
         managePage.addView(categoryTabs);
         categoryPages=new SwipePages(this,index->selectCategory(index));
+        categoryPages.setMinimumHeight(dp(240));
         managePage.addView(categoryPages,new LinearLayout.LayoutParams(-1,-2));
-        for(int i=0;i<4;i++){
+        for(int i=0;i<categories.length;i++){
             categories[i]=column();categoryPages.addView(categories[i],new FrameLayout.LayoutParams(-1,-2));
-            TextView description=text(categories[i],descriptions[i],14);description.setPadding(0,0,0,dp(16));
+            if(!descriptions[i].isEmpty()){TextView description=text(categories[i],descriptions[i],14);description.setPadding(0,0,0,dp(16));}
         }
         aboutPage=page("关于","简单、直接，专注你的体验。");
         LinearLayout app=card(aboutPage);
@@ -252,15 +253,15 @@ public final class MainActivity extends Activity {
         navigation.select(target,animate);navigationReady=true;
     }
     private void selectCategory(int category){
-        int target=Math.max(0,Math.min(3,category)),previous=selectedCategory;
-        if(target>=2+developerMode.level())target=0;
+        int target=Math.max(0,Math.min(categories.length-1,category)),previous=selectedCategory;
+        if(target>=DeveloperMode.visibleCategoryCount(developerMode.level()))target=0;
         recordingShortcut=false;resetShortcutButtons();selectedCategory=target;
-        for(int i=0;i<4;i++){
+        for(int i=0;i<categories.length;i++){
             categories[i].animate().cancel();categories[i].setAlpha(1);categories[i].setTranslationX(0);
             categories[i].setVisibility(i==selectedCategory?View.VISIBLE:View.GONE);
         }
         boolean animate=navigationReady&&previous!=target;
-        categoryPages.setPage(target,2+developerMode.level());
+        categoryPages.setPage(target,DeveloperMode.visibleCategoryCount(developerMode.level()));
         categoryTabs.select(target,animate);
         reveal(categories[target],animate,target>previous?1:-1);
     }

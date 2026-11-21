@@ -12,20 +12,20 @@ import android.view.animation.PathInterpolator;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-/** A single selection pill moves under the four category labels. */
+/** A single selection pill moves under the available category labels. */
 final class CategoryTabs extends LinearLayout {
     interface OnSelect { void select(int index); }
     private final MaterialUi ui;
-    private final TextView[] tabs=new TextView[4];
+    private final TextView[] tabs;
     private final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF pill=new RectF();
     private ValueAnimator animator;
     private float position;
-    private int availableCount=4,selected;
+    private int availableCount,selected;
     private final HorizontalDrag drag;
     private float dragOrigin,dragPosition;
     CategoryTabs(Context context,MaterialUi ui,String[] names,OnSelect action){
-        super(context);this.ui=ui;setWillNotDraw(false);setPadding(0,ui.dp(12),0,ui.dp(16));
+        super(context);this.ui=ui;tabs=new TextView[names.length];availableCount=names.length;setWillNotDraw(false);setPadding(0,ui.dp(12),0,ui.dp(16));
         for(int i=0;i<tabs.length;i++){
             final int index=i;TextView tab=new TextView(context);tabs[i]=tab;
             tab.setText(names[i]);tab.setTextSize(14);tab.setGravity(Gravity.CENTER);tab.setMinHeight(ui.dp(48));
@@ -45,7 +45,7 @@ final class CategoryTabs extends LinearLayout {
     @Override public boolean onInterceptTouchEvent(MotionEvent event){return drag.intercept(event);}
     @Override public boolean onTouchEvent(MotionEvent event){return drag.touch(event)||super.onTouchEvent(event);}
     void setAvailableCount(int count){
-        availableCount=Math.max(2,Math.min(4,count));
+        availableCount=Math.max(2,Math.min(tabs.length,count));
         if(animator!=null)animator.cancel();
         for(int i=0;i<tabs.length;i++)tabs[i].setVisibility(i<availableCount?VISIBLE:GONE);
         if(position>=availableCount)position=0;

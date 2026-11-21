@@ -14,11 +14,12 @@ final class DeveloperMode {
     static int requiredLevel(String key){
         switch(key){
             case "portable_craft":case "portable_daily":case "portable_expedition":return 1;
-            case "hide_uid":case "qr_login":case "skip_team_loading":case "no_avatar_switch_cd":return 2;
+            case "hide_uid":case "qr_login":case "skip_team_loading":case "no_avatar_switch_cd":return 1;
             default:return 0;
         }
     }
     static boolean allowed(int level,String key){return normalize(level)>=requiredLevel(key);}
+    static int visibleCategoryCount(int level){int value=normalize(level);return value==0?2:value==1?4:5;}
     int level(){return level;}
     // Schedule an idle check at a meaningful count; every new tap cancels the old check.
     boolean tap(long now){

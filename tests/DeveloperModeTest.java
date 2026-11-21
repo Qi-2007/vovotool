@@ -29,9 +29,10 @@ public final class DeveloperModeTest {
         String[] other={"hide_uid","qr_login","skip_team_loading","no_avatar_switch_cd"};
         for(int level=0;level<=2;level++){
             for(String key:portable)check(DeveloperMode.allowed(level,key)==(level>0),"portable gate "+key);
-            for(String key:other)check(DeveloperMode.allowed(level,key)==(level>1),"other gate "+key);
+            for(String key:other)check(DeveloperMode.allowed(level,key)==(level>0),"other gate "+key);
             for(String key:new String[]{"enabled","capture","graphics_enabled","disable_character_fade"})check(DeveloperMode.allowed(level,key),"ordinary feature "+key);
         }
+        check(DeveloperMode.visibleCategoryCount(0)==2&&DeveloperMode.visibleCategoryCount(1)==4&&DeveloperMode.visibleCategoryCount(2)==5,"category visibility by level");
         check(DeveloperMode.normalize(-1)==0&&DeveloperMode.normalize(8)==2,"level normalization");
         System.out.println("PASS: all exact-count idle actions, overshoot, cancellation, code validation, persistence and feature gates");
     }
