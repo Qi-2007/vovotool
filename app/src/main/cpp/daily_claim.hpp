@@ -1,6 +1,6 @@
 #pragma once
 // Reuse the original dialogue callback; it owns eligibility, confirmation and sending.
-std::atomic<bool> dailyEnabled{true},dailyPending{false},dailyKeyHeld{false},dailyBusy{false};
+std::atomic<bool> dailyEnabled{false},dailyPending{false},dailyKeyHeld{false},dailyBusy{false};
 std::atomic<int> dailyStatus{0};
 std::atomic<unsigned long> dailyRequests{0},dailyCalls{0},dailyConfirmed{0},dailyRejected{0};
 std::atomic<int64_t> dailyRequestedAt{0};

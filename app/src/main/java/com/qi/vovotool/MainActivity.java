@@ -32,6 +32,8 @@ public final class MainActivity extends Activity {
     private FrameLayout pages;
     private int selectedPage,selectedCategory;
     private MaterialUi ui;
+    private DeveloperMode developerMode;
+    private android.app.AlertDialog developerDialog;
     private final Handler handler=new Handler(Looper.getMainLooper());
     private TextView state,rootState,uidState,craftState,dailyState,expeditionState,graphicsState,teamLoadingState,avatarFadeState,avatarSwitchState;
     private EditText mouse,touchpad;
@@ -59,6 +61,7 @@ public final class MainActivity extends Activity {
     private EditText number(LinearLayout parent,String title,float value){text(parent,title,17);EditText e=new EditText(this);e.setText(Float.toString(value));e.setTextColor(ui.ink);e.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL);parent.addView(e);return e;}
     @Override public void onCreate(Bundle saved){
         super.onCreate(saved);prefs=Settings.preferences(this);Settings.grantGameAccess(this);
+        developerMode=new DeveloperMode(Settings.developerLevel(prefs));
         ui=new MaterialUi(this);
         buildShell();
         LinearLayout layout=card(homePage);
@@ -74,37 +77,37 @@ public final class MainActivity extends Activity {
         layout=card(categories[1]);
         Switch enabled=new Switch(this);enabled.setText("启用 PC 界面与原生键鼠");enabled.setTextColor(Color.WHITE);enabled.setChecked(prefs.getBoolean("enabled",true));enabled.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("enabled",c).apply());layout.addView(enabled);
         layout=card(categories[1]);
-        Switch capture=new Switch(this);capture.setText("镜头捕获指针，菜单自动释放");capture.setTextColor(ui.ink);capture.setChecked(prefs.getBoolean("capture",true));capture.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("capture",c).apply());layout.addView(capture);
+        Switch capture=new Switch(this);capture.setText("启用自动捕获指针");capture.setTextColor(ui.ink);capture.setChecked(prefs.getBoolean("capture",true));capture.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("capture",c).apply());layout.addView(capture);
         layout=card(categories[3]);
         Switch hideUid=new Switch(this);hideUid.setText("隐藏 UID（右下角及派蒙菜单）");hideUid.setTextColor(Color.WHITE);hideUid.setChecked(prefs.getBoolean("hide_uid",true));hideUid.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("hide_uid",c).apply());layout.addView(hideUid);
         uidState=text(layout,"等待 UID 显示组件",14);
         layout=card(categories[3]);
-        Switch qr=new Switch(this);qr.setText("登录弹窗显示扫码登录入口（实验）");qr.setTextColor(Color.WHITE);qr.setChecked(prefs.getBoolean("qr_login",true));qr.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("qr_login",c).apply());layout.addView(qr);
+        Switch qr=new Switch(this);qr.setText("登录弹窗添加扫码登录入口（实验）");qr.setTextColor(Color.WHITE);qr.setChecked(prefs.getBoolean("qr_login",true));qr.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("qr_login",c).apply());layout.addView(qr);
         layout=card(categories[2]);
         Switch craft=new Switch(this);craft.setText("随身合成台");craft.setTextColor(Color.WHITE);craft.setChecked(prefs.getBoolean("portable_craft",true));craft.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("portable_craft",c).apply());layout.addView(craft);
         shortcutButton=button(layout,"设置快捷键 · "+craftShortcut(),v->recordShortcut("craft"));
-        text(layout,"支持普通按键及 Ctrl、Alt、Shift 组合键。保存后约 1 秒在游戏中生效；在大世界可操作状态下使用。",14);
+        text(layout,"支持普通按键及Shift 组合键。在大世界可操作状态下打开合成台页面。",14);
         craftState=text(layout,"随身合成台已就绪",14);
         layout=card(categories[2]);
         Switch daily=new Switch(this);daily.setText("随身领取日委奖励");daily.setTextColor(Color.WHITE);daily.setChecked(prefs.getBoolean("portable_daily",true));daily.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("portable_daily",c).apply());layout.addView(daily);
         dailyShortcutButton=button(layout,"设置快捷键 · "+dailyShortcut(),v->recordShortcut("daily"));
-        text(layout,"在大世界按快捷键领取已满足条件的日委奖励。若游戏弹出确认界面，请在游戏内确认；不会自动重试。",14);
+        text(layout,"支持普通按键及Shift 组合键。在大世界可操作状态下领取已满足条件的日委奖励。",14);
         dailyState=text(layout,"日委领取等待游戏连接",14);
         layout=card(categories[2]);
         Switch expedition=new Switch(this);expedition.setText("随身探索派遣");expedition.setTextColor(Color.WHITE);expedition.setChecked(prefs.getBoolean("portable_expedition",true));expedition.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("portable_expedition",c).apply());layout.addView(expedition);
         expeditionShortcutButton=button(layout,"设置快捷键 · "+expeditionShortcut(),v->recordShortcut("expedition"));
-        text(layout,"默认数字键 7，可录制普通按键或组合键。在大世界打开原生探索派遣界面，派遣与领取由你在游戏内操作。",14);
+        text(layout,"支持普通按键及Shift 组合键。在大世界可操作状态下打开原生探索派遣界面。",14);
         expeditionState=text(layout,"探索派遣等待游戏连接",14);
         layout=card(categories[3]);
         Switch teamLoading=new Switch(this);teamLoading.setText("取消打开队伍配置的读条");teamLoading.setTextColor(Color.WHITE);teamLoading.setChecked(prefs.getBoolean("skip_team_loading",true));teamLoading.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("skip_team_loading",c).apply());layout.addView(teamLoading);
-        text(layout,"页面就绪后跳过读条，保留游戏原本的队伍配置限制。约 1 秒生效，无需重新启动。",14);
+        text(layout,"仅在页面就绪后跳过读条，保留游戏原本的开启限制。",14);
         teamLoadingState=text(layout,"队伍读条功能等待游戏连接",14);
         layout=card(categories[0]);
-        Switch avatarFade=new Switch(this);avatarFade.setText("反角色虚化（镜头靠近时保持可见）");avatarFade.setTextColor(ui.ink);avatarFade.setChecked(prefs.getBoolean("disable_character_fade",true));avatarFade.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("disable_character_fade",c).apply());layout.addView(avatarFade);
+        Switch avatarFade=new Switch(this);avatarFade.setText("反角色虚化");avatarFade.setTextColor(ui.ink);avatarFade.setChecked(prefs.getBoolean("disable_character_fade",true));avatarFade.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("disable_character_fade",c).apply());layout.addView(avatarFade);
         avatarFadeState=text(layout,"反角色虚化等待游戏连接",14);
         layout=card(categories[3]);
-        Switch avatarSwitch=new Switch(this);avatarSwitch.setText("取消切换角色冷却（实验）");avatarSwitch.setTextColor(Color.WHITE);avatarSwitch.setChecked(prefs.getBoolean("no_avatar_switch_cd",false));avatarSwitch.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("no_avatar_switch_cd",c).apply());layout.addView(avatarSwitch);
-        text(layout,"在大世界快速切人，并移除头像倒计时。约 1 秒生效，无需重启；极快连按仍可能被游戏拒绝。默认关闭。",14);
+        Switch avatarSwitch=new Switch(this);avatarSwitch.setText("取消切换角色冷却");avatarSwitch.setTextColor(Color.WHITE);avatarSwitch.setChecked(prefs.getBoolean("no_avatar_switch_cd",false));avatarSwitch.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("no_avatar_switch_cd",c).apply());layout.addView(avatarSwitch);
+        text(layout,"在大世界快速切人，并移除头像倒计时。极快连按仍可能被游戏服务器拒绝。",14);
         avatarSwitchState=text(layout,"切人冷却功能等待游戏连接",14);
         layout=card(categories[1]);
         text(layout,"镜头速度",20);
@@ -118,7 +121,7 @@ public final class MainActivity extends Activity {
         graphicsState=GraphicsSettings.add(this,categories[0],prefs,ui);
         layout=card(categories[1]);
         text(layout,"触控板兼容",22);
-        text(layout,"外接鼠标无需启动此项。Lenovo 键盘套触控板需要 root 授权；游戏菜单继续使用系统触控板。",16);
+        text(layout,"外接鼠标无需启动此项。仅适配 Lenovo 磁吸键盘的触控板，其他品牌请自行尝试。需要对模块进行 root 授权。",16);
         rootState=text(layout,"未启动",16);
         button(layout,"启动触控板兼容",v->{
             if(Build.VERSION.SDK_INT>=33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},100);
@@ -128,8 +131,50 @@ public final class MainActivity extends Activity {
 
         text(layout,"关闭操控主开关可恢复本次进程的输入基线；完整重载界面请重新启动游戏。模块不修改游戏文件或系统分区。",14);
         ui.styleTree(pages);
+        updateDeveloperUi();
         selectCategory(saved==null?0:saved.getInt("category",0));
         selectPage(saved==null?0:saved.getInt("page",0));
+    }
+    private void saveDeveloperLevel(){
+        prefs.edit().putInt(DeveloperMode.LEVEL_KEY,developerMode.level()).apply();
+        updateDeveloperUi();
+        selectCategory(selectedCategory);
+    }
+    private void updateDeveloperUi(){categoryTabs.setAvailableCount(2+developerMode.level());}
+    private final Runnable finishLogoTaps=()->{
+        if(selectedPage!=2)return;
+        int action=developerMode.finishTaps(android.os.SystemClock.elapsedRealtime());
+        if(action==2){showDeveloperDialog();return;}
+        if(action==1||action==3){
+            saveDeveloperLevel();Toast.makeText(this,action==1?"已启用高级功能":"已恢复基础模式",Toast.LENGTH_SHORT).show();
+        }
+    };
+    private void onLogoTap(){
+        handler.removeCallbacks(finishLogoTaps);
+        if(developerMode.tap(android.os.SystemClock.elapsedRealtime()))handler.postDelayed(finishLogoTaps,DeveloperMode.RESET_IDLE_MS);
+    }
+    private void showDeveloperDialog(){
+        EditText input=new EditText(this);input.setSingleLine(true);input.setHint("请输入验证码");
+        input.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+        input.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_DONE);
+        LinearLayout content=column();content.setPadding(dp(24),dp(8),dp(24),0);content.addView(input);
+        Runnable submit=()->{
+            if(developerMode.submit(input.getText().toString())){
+                saveDeveloperLevel();Toast.makeText(this,"已启用开发者模式",Toast.LENGTH_SHORT).show();
+            }
+            if(developerDialog!=null)developerDialog.dismiss();
+        };
+        developerDialog=new android.app.AlertDialog.Builder(this).setTitle("开发者模式").setView(content)
+            .setPositiveButton("确认",(dialog,which)->submit.run()).setNegativeButton("取消",null).create();
+        developerDialog.setOnDismissListener(dialog->{developerMode.cancel();developerDialog=null;});
+        input.setOnEditorActionListener((v,action,event)->{
+            if(action==android.view.inputmethod.EditorInfo.IME_ACTION_DONE||
+                (event!=null&&(event.getKeyCode()==KeyEvent.KEYCODE_ENTER||event.getKeyCode()==KeyEvent.KEYCODE_NUMPAD_ENTER))){
+                if(event==null||event.getAction()==KeyEvent.ACTION_DOWN)submit.run();return true;
+            }return false;
+        });
+        developerDialog.setOnShowListener(dialog->{input.requestFocus();developerDialog.getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);});
+        developerDialog.show();
     }
     private void openGame(){
         Intent game=getPackageManager().getLaunchIntentForPackage(Settings.GAME);
@@ -159,11 +204,12 @@ public final class MainActivity extends Activity {
             categories[i]=column();managePage.addView(categories[i],new LinearLayout.LayoutParams(-1,-2));
             TextView description=text(categories[i],descriptions[i],14);description.setPadding(0,0,0,dp(16));
         }
-        aboutPage=page("关于","简单、直接，专注每一次操作。");
+        aboutPage=page("关于","简单、直接，专注你的体验。");
         LinearLayout app=card(aboutPage);
         android.widget.ImageView logo=new android.widget.ImageView(this);logo.setImageDrawable(getApplicationInfo().loadIcon(getPackageManager()));app.addView(logo,new LinearLayout.LayoutParams(dp(64),dp(64)));
+        logo.setContentDescription("沃沃头 Logo");logo.setOnClickListener(v->onLogoTap());
         text(app,"沃沃头",24);
-        try{text(app,"版本 "+getPackageManager().getPackageInfo(getPackageName(),0).versionName+" · UI 预览",14);}catch(Exception ignored){}
+        try{text(app,"版本 "+getPackageManager().getPackageInfo(getPackageName(),0).versionName+" 仅供学习研究，免费开源，禁止售卖",14);}catch(Exception ignored){}
         text(app,getPackageName(),14);
         LinearLayout info=card(aboutPage);text(info,"使用说明",20);text(info,"在 LSPosed 中启用沃沃头，作用域仅勾选原神。更新模块后，请重新启动游戏。",15);text(info,"图形设置保存后，下次启动原神生效。其他开关和快捷键通常约 1 秒生效。",15);
         text(info,"模块不修改游戏文件或系统分区。",14);
@@ -188,6 +234,7 @@ public final class MainActivity extends Activity {
     private void selectPage(int page){
         int target=Math.max(0,Math.min(2,page)),previous=selectedPage;
         boolean animate=navigationReady&&previous!=target;
+        if(target!=2){developerMode.resetTaps();handler.removeCallbacks(finishLogoTaps);}
         recordingShortcut=false;resetShortcutButtons();selectedPage=target;
         for(int i=0;i<3;i++){
             View child=pages.getChildAt(i);child.animate().cancel();child.setAlpha(1);child.setTranslationX(0);
@@ -198,6 +245,7 @@ public final class MainActivity extends Activity {
     }
     private void selectCategory(int category){
         int target=Math.max(0,Math.min(3,category)),previous=selectedCategory;
+        if(target>=2+developerMode.level())target=0;
         recordingShortcut=false;resetShortcutButtons();selectedCategory=target;
         for(int i=0;i<4;i++){
             categories[i].animate().cancel();categories[i].setAlpha(1);categories[i].setTranslationX(0);
@@ -245,7 +293,7 @@ public final class MainActivity extends Activity {
         int[] u=ConfigProvider.lastUidState;
         if(fresh&&u.length==5){
             switch(u[0]){
-                case 2:uidState.setText("已发现的 UID 文字已隐藏");break;
+                case 2:uidState.setText("已隐藏 UID");break;
                 case 3:uidState.setText("UID 显示已恢复");break;
                 case -2:uidState.setText("UID 文字校验失败，本次停止调整");break;
                 case 1:uidState.setText("等待 UID 显示组件");break;
@@ -294,7 +342,12 @@ public final class MainActivity extends Activity {
         graphicsState.setText(GraphicsSettings.status(ConfigProvider.lastGraphicsState,ConfigProvider.lastRenderState,fresh));
         rootState.setText(RootProxyService.status);handler.postDelayed(this,1000);
     }};
-    @Override public void onResume(){super.onResume();Settings.grantGameAccess(this);handler.post(refresh);}
+    @Override public void onResume(){super.onResume();Settings.grantGameAccess(this);
+        if(developerMode.level()!=Settings.developerLevel(prefs)){
+            developerMode=new DeveloperMode(Settings.developerLevel(prefs));updateDeveloperUi();selectCategory(selectedCategory);
+        }
+        handler.post(refresh);
+    }
     @Override public boolean dispatchKeyEvent(KeyEvent event){
         int code=event.getKeyCode();
         if(event.getAction()==KeyEvent.ACTION_UP && recordedRelease==code){recordedRelease=0;return true;}
@@ -316,6 +369,8 @@ public final class MainActivity extends Activity {
         Toast.makeText(this,"已保存："+featureShortcut(target),Toast.LENGTH_SHORT).show();return true;
     }
     @Override public void onPause(){
+        developerMode.resetTaps();handler.removeCallbacks(finishLogoTaps);
+        if(developerDialog!=null)developerDialog.dismiss();
         recordingShortcut=false;recordedRelease=0;
         resetShortcutButtons();
         handler.removeCallbacks(refresh);super.onPause();

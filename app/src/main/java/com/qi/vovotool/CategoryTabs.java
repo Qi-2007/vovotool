@@ -20,6 +20,7 @@ final class CategoryTabs extends LinearLayout {
     private final RectF pill=new RectF();
     private ValueAnimator animator;
     private float position;
+    private int availableCount=4;
     CategoryTabs(Context context,MaterialUi ui,String[] names,OnSelect action){
         super(context);this.ui=ui;setWillNotDraw(false);setPadding(0,ui.dp(12),0,ui.dp(16));
         for(int i=0;i<tabs.length;i++){
@@ -28,6 +29,13 @@ final class CategoryTabs extends LinearLayout {
             tab.setTextColor(i==0?ui.primary:ui.muted);tab.setBackground(ui.feedback(Color.TRANSPARENT,24));ui.pressFeedback(tab);
             tab.setOnClickListener(v->action.select(index));addView(tab,new LayoutParams(0,-2,1));
         }
+    }
+    void setAvailableCount(int count){
+        availableCount=Math.max(2,Math.min(4,count));
+        if(animator!=null)animator.cancel();
+        for(int i=0;i<tabs.length;i++)tabs[i].setVisibility(i<availableCount?VISIBLE:GONE);
+        if(position>=availableCount)position=0;
+        requestLayout();invalidate();
     }
     void select(int index,boolean animate){
         if(animator!=null)animator.cancel();
@@ -43,7 +51,7 @@ final class CategoryTabs extends LinearLayout {
         animator.start();
     }
     @Override protected void onDraw(Canvas canvas){
-        super.onDraw(canvas);float width=(getWidth()-getPaddingLeft()-getPaddingRight())/(float)tabs.length;
+        super.onDraw(canvas);float width=(getWidth()-getPaddingLeft()-getPaddingRight())/(float)availableCount;
         float left=getPaddingLeft()+position*width;paint.setColor(ui.selected);
         pill.set(left,getPaddingTop(),left+width,getHeight()-getPaddingBottom());canvas.drawRoundRect(pill,ui.dp(24),ui.dp(24),paint);
     }

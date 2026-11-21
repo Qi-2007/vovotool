@@ -1,6 +1,6 @@
 #pragma once
 // ExplorationPage's original handler accepts a nullable return action and area string.
-std::atomic<bool> expeditionEnabled{true},expeditionPending{false},expeditionKeyHeld{false};
+std::atomic<bool> expeditionEnabled{false},expeditionPending{false},expeditionKeyHeld{false};
 std::atomic<int> expeditionStatus{0};
 std::atomic<unsigned long> expeditionRequests{0},expeditionDispatches{0},expeditionOpened{0},expeditionRejected{0};
 std::atomic<int64_t> expeditionRequestedAt{0};

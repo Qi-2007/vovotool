@@ -13,6 +13,10 @@ public final class Settings {
     public static final Uri URI=Uri.parse("content://"+PACKAGE+".config/state");
     private Settings() {}
     public static SharedPreferences preferences(Context context) { return context.getSharedPreferences("settings", Context.MODE_PRIVATE); }
+    static int developerLevel(SharedPreferences p){return DeveloperMode.normalize(p.getInt(DeveloperMode.LEVEL_KEY,0));}
+    static boolean effective(SharedPreferences p,String key,boolean fallback){
+        return DeveloperMode.allowed(developerLevel(p),key)&&p.getBoolean(key,fallback);
+    }
     public static void grantGameAccess(Context context) {
         try { context.grantUriPermission(GAME,URI,Intent.FLAG_GRANT_READ_URI_PERMISSION); }
         catch (RuntimeException error) { Log.w("vovotool","Cannot grant the scoped game configuration URI",error); }

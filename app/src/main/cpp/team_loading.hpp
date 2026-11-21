@@ -1,7 +1,7 @@
 #pragma once
 // Resume the existing team-page coroutine after the main page is ready.
 // Its initialization and native eligibility checks remain in the original.
-std::atomic<bool> teamLoadingEnabled{true};
+std::atomic<bool> teamLoadingEnabled{false};
 std::atomic<int> teamLoadingStatus{0},teamLoadingDuration{0},teamLoadingElapsed{0};
 std::atomic<unsigned long> teamLoadingCalls{0},teamLoadingSkipped{0},teamLoadingWaiting{0};
 bool(*originalTeamLoading)(void*,void*)=nullptr;

@@ -1,6 +1,6 @@
 #pragma once
 // Open the original SynthesisPage through the same named-page route as Fufu.
-std::atomic<bool> craftEnabled{true},craftPending{false},craftKeyHeld{false};
+std::atomic<bool> craftEnabled{false},craftPending{false},craftKeyHeld{false};
 std::atomic<int> craftStatus{0};
 std::atomic<unsigned long> craftRequests{0},craftDispatches{0},craftOpened{0},craftRejected{0};
 std::atomic<int64_t> craftRequestedAt{0};

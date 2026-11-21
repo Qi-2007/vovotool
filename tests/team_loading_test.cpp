@@ -21,7 +21,7 @@ bool original(void* it,void* method){assert(it==(void*)0x100&&method==expectedMe
 void run(bool skipped){float before=read<float>(0xe10);int n=calls;bool result=teamLoadingHook((void*)0x100,expectedMethod);assert(calls==n+1&&result==bool(calls%2));assert(skipped?observed==0:(std::isnan(before)?std::isnan(observed):observed==before));float after=read<float>(0xe10);assert(std::isnan(before)?std::isnan(after):before==after);}
 int main(){
     originalTeamLoading=original;teamLoadingStatus=1;write<P>(0x118,0x800);write<int>(0x120,0);write<int>(0x9b4,0);write<int>(0x9e4,3);write<float>(0xe10,2);write<float>(0xea4,0);
-    run(false);write<int>(0x120,1);run(true); // initialization remains intact, then skip and restore
+    assert(!teamLoadingEnabled);run(false);write<int>(0x120,1);run(false);teamLoadingEnabled=true;run(true); // initialization remains intact, then skip and restore
     write<int>(0x9b4,1);run(false);write<int>(0x9b4,0);write<int>(0x9e4,2);run(false);write<int>(0x9e4,3);run(true);
     top=0x900;run(false);top=0x800;mainPage=false;run(false);mainPage=true;
     enabled=false;run(false);enabled=true;teamLoadingEnabled=false;run(false);teamLoadingEnabled=true;
