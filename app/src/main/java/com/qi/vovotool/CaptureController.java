@@ -77,6 +77,7 @@ public final class CaptureController {
                 NativeBridge.requestLookRefresh(c.getLong(c.getColumnIndexOrThrow("look_refresh")));
             }
             Bundle report=new Bundle();report.putIntArray("state",NativeBridge.state());
+            report.putIntArray("regionUnlockState",NativeBridge.regionUnlockState());
             report.putIntArray("graphicsState",NativeBridge.graphicsState());
             report.putIntArray("renderState",NativeBridge.renderState());
             report.putIntArray("photoState",NativeBridge.photoState());

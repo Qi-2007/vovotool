@@ -403,5 +403,17 @@
       "rva": 216071988,
       "bytes": "e923bd6dfe5701a9f44f02a9284d04d0"
     }
+  ],
+  "regionUnlock": [
+    {
+      "name": "regionUnlockSetLocal",
+      "rva": 216115804,
+      "bytes": "ff4302d1fe2b00f9f85f06a9f65707a9"
+    },
+    {
+      "name": "regionUnlockCacheSetter",
+      "rva": 243280792,
+      "bytes": "fe0f1df8f65701a9f44f02a9487d03b0"
+    }
   ]
 }

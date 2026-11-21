@@ -13,6 +13,8 @@ final class GameConfiguration {
         }catch(Exception error){Settings.requestConfigurationWakeup(context);android.util.Log.w("vovotool","Startup configuration unavailable; will retry on game resume",error);}
     }
     static void apply(Context context,Cursor c){
+        NativeBridge.configureRegionUnlock(c.getInt(c.getColumnIndexOrThrow("developer_level"))>1&&flag(c,"enabled"),
+            c.getLong(c.getColumnIndexOrThrow("region_unlock_token")));
         NativeBridge.configure(flag(c,"enabled"),c.getFloat(c.getColumnIndexOrThrow("mouse_scale")),flag(c,"capture"),
             c.getInt(c.getColumnIndexOrThrow("proxy_port")),c.getString(c.getColumnIndexOrThrow("proxy_token")),c.getFloat(c.getColumnIndexOrThrow("touchpad_gain")));
         NativeBridge.configureAvatarSwitch(flag(c,"no_avatar_switch_cd"));

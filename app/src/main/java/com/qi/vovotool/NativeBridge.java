@@ -50,4 +50,6 @@ public final class NativeBridge {
     public static native void configureAvatarSwitch(boolean enabled);
     public static native int[] avatarSwitchState();
     public static native int[] avatarSwitchTraceState();
+    public static native void configureRegionUnlock(boolean allowed,long token);
+    public static native int[] regionUnlockState();
 }

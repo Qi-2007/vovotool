@@ -39,6 +39,10 @@ public final class MainActivity extends Activity {
     private EditText mouse,touchpad;
     private SharedPreferences prefs;
     private Button shortcutButton,dailyShortcutButton,expeditionShortcutButton;
+    private Button regionUnlockButton;
+    private TextView regionUnlockState;
+    private long regionUnlockSubmittedAt;
+    private int regionUnlockPreviousRequests;
     private boolean recordingShortcut;
     private String recordingFeature="craft";
     private int recordedRelease;
@@ -110,6 +114,21 @@ public final class MainActivity extends Activity {
         Switch avatarSwitch=new Switch(this);avatarSwitch.setText("取消切换角色冷却");avatarSwitch.setTextColor(Color.WHITE);avatarSwitch.setChecked(prefs.getBoolean("no_avatar_switch_cd",false));avatarSwitch.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("no_avatar_switch_cd",c).apply());layout.addView(avatarSwitch);
         text(layout,"在大世界快速切人，并移除头像倒计时。极快连按仍可能被游戏服务器拒绝。",14);
         avatarSwitchState=text(layout,"切人冷却功能等待游戏连接",14);
+        layout=card(categories[4]);
+        text(layout,"红圈解锁",22);
+        text(layout,"解除新手限制（47）、大世界限制（48）及至冬区域限制（7058）。",14);
+        regionUnlockButton=button(layout,"解锁红圈",v->{
+            Bundle result=getContentResolver().call(Settings.URI,"unlock_regions",null,null);
+            if(result!=null&&result.getBoolean("accepted",false)){
+                regionUnlockSubmittedAt=android.os.SystemClock.elapsedRealtime();
+                int[] previous=ConfigProvider.lastRegionUnlockState;
+                regionUnlockPreviousRequests=previous.length==5?previous[1]:0;
+                regionUnlockButton.setEnabled(false);regionUnlockState.setText("已提交，请返回原神");
+                Toast.makeText(this,"已提交，请返回原神",Toast.LENGTH_SHORT).show();
+            }else Toast.makeText(this,"请先连接原神并开启操控主开关",Toast.LENGTH_SHORT).show();
+        });
+        text(layout,"对当前游戏执行一次，重新登录后可再次使用。",14);
+        regionUnlockState=text(layout,"红圈解锁等待游戏连接",14);
         layout=card(categories[1]);
         text(layout,"镜头速度",20);
         mouse=number(layout,"镜头基础倍率（默认 0.02）",prefs.getFloat("mouse_scale",.02f));
@@ -269,6 +288,7 @@ public final class MainActivity extends Activity {
 
     private final Runnable refresh=new Runnable(){public void run(){
         int[] s=ConfigProvider.lastState;boolean fresh=System.currentTimeMillis()-ConfigProvider.lastReport<4000;
+        refreshRegionUnlock(fresh);
         if(fresh && s.length>0){
             switch(s[0]){
                 case 2:state.setText("原神已连接 · 原生键鼠已启用");break;
@@ -352,6 +372,27 @@ public final class MainActivity extends Activity {
         graphicsState.setText(GraphicsSettings.status(ConfigProvider.lastGraphicsState,ConfigProvider.lastRenderState,fresh));
         rootState.setText(RootProxyService.status);handler.postDelayed(this,1000);
     }};
+    private void refreshRegionUnlock(boolean fresh){
+        int[] value=ConfigProvider.lastRegionUnlockState;
+        boolean waiting=regionUnlockSubmittedAt>0&&(value.length!=5||value[1]<=regionUnlockPreviousRequests);
+        if(!waiting)regionUnlockSubmittedAt=0;
+        if(waiting&&android.os.SystemClock.elapsedRealtime()-regionUnlockSubmittedAt<60000){
+            regionUnlockButton.setEnabled(false);regionUnlockState.setText("已提交，请返回原神");return;
+        }
+        boolean connected=fresh&&value.length==5;
+        regionUnlockButton.setEnabled(connected&&value[0]!=1&&prefs.getBoolean("enabled",true)&&DeveloperMode.allowed(Settings.developerLevel(prefs),"unlock_regions"));
+        if(waiting){regionUnlockState.setText("请求已过期，请返回原神后重试");return;}
+        if(!connected){regionUnlockState.setText("红圈解锁等待游戏连接");return;}
+        switch(value[0]){
+            case 1:regionUnlockState.setText("等待游戏加载，请返回原神");break;
+            case 2:regionUnlockState.setText("已解锁 · 47、48、7058 均已开启");break;
+            case -1:regionUnlockState.setText("红圈解锁版本校验未通过");break;
+            case -2:case -3:regionUnlockState.setText("未确认全部解锁，请返回原神后重试");break;
+            case -4:regionUnlockState.setText("请求已取消");break;
+            case -5:regionUnlockState.setText("请求已过期，请返回原神后重试");break;
+            default:regionUnlockState.setText("红圈解锁已就绪");
+        }
+    }
     @Override public void onResume(){super.onResume();Settings.grantGameAccess(this);RootProxyService.reconcile(this);
         if(developerMode.level()!=Settings.developerLevel(prefs)){
             developerMode=new DeveloperMode(Settings.developerLevel(prefs));updateDeveloperUi();selectCategory(selectedCategory);

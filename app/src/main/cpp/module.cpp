@@ -79,6 +79,7 @@ bool classIs(P object,const char* name){
 #include "team_loading.hpp"
 #include "avatar_fade.hpp"
 #include "avatar_switch.hpp"
+#include "region_unlock.hpp"
 bool ready(P b){
     if((read<uint8_t>(b+0x158099bc)&1)==0)return false;
     P root=read<P>(b+profile::singletonRoot);
@@ -184,6 +185,7 @@ void tickHook(void* self,void* method){
             updateCrafting(b);
             updateExpedition(b);
             updateDaily(b);
+            updateRegionUnlock(b);
             heartbeat();
         }
     }catch(...){enabled=false;stage=-3;log("Native input call failed; module disabled for this process");}
@@ -240,7 +242,7 @@ void install(P address){
     if(hookFunction(reinterpret_cast<void*>(address+profile::keyboardUpdate),reinterpret_cast<void*>(keyboardHook),reinterpret_cast<void**>(&originalKeyboard))!=0){stage=-2;log("Keyboard hook installation failed");return;}
     if(hookFunction(reinterpret_cast<void*>(address+profile::mouseUpdate),reinterpret_cast<void*>(mouseHook),reinterpret_cast<void**>(&originalMouse))!=0){stage=-2;log("Mouse hook installation failed");return;}
     if(hookFunction(reinterpret_cast<void*>(address+profile::tick),reinterpret_cast<void*>(tickHook),reinterpret_cast<void**>(&originalTick))!=0){stage=-2;log("Tick hook installation failed");return;}
-    base=address;stage=1;installLookFactors(address);installTouchLook(address);installMapMouse(address);installTeamLoading(address);installAvatarFade(address);installAvatarSwitch(address);installPhoto(address);installGraphics(address);log("Native hooks installed for pinned 7.2 ARM64 library");
+    base=address;stage=1;installLookFactors(address);installTouchLook(address);installMapMouse(address);installTeamLoading(address);installAvatarFade(address);installAvatarSwitch(address);installPhoto(address);installGraphics(address);installRegionUnlock(address);log("Native hooks installed for pinned 7.2 ARM64 library");
 }
 int findModule(dl_phdr_info* info,size_t,void*){
     const char* name=info->dlpi_name;
@@ -254,6 +256,13 @@ extern "C" __attribute__((visibility("default"),used)) ModuleLoaded native_init(
     hookFunction=api->hook_func;dl_iterate_phdr(findModule,nullptr);return loaded;
 }
 extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM*,void*){log("JNI loaded");return JNI_VERSION_1_6;}
+extern "C" JNIEXPORT void JNICALL Java_com_qi_vovotool_NativeBridge_configureRegionUnlock(JNIEnv*,jclass,jboolean allowed,jlong token){
+    requestRegionUnlock(allowed,token);
+}
+extern "C" JNIEXPORT jintArray JNICALL Java_com_qi_vovotool_NativeBridge_regionUnlockState(JNIEnv* env,jclass){
+    jint values[]={regionUnlockStatus.load(),regionUnlockRequests.load(),regionUnlockValues[0].load(),regionUnlockValues[1].load(),regionUnlockValues[2].load()};
+    jintArray result=env->NewIntArray(5);env->SetIntArrayRegion(result,0,5,values);return result;
+}
 extern "C" JNIEXPORT void JNICALL Java_com_qi_vovotool_NativeBridge_configure(JNIEnv* env,jclass,jboolean active,jfloat scale,jboolean capture,jint port,jstring token,jfloat gain){
     enabled=active;captureEnabled=capture;
     if(std::isfinite(scale)&&scale>=0.0001f&&scale<=2)mouseScale=scale;

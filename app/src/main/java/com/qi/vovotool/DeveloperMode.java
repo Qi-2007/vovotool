@@ -13,6 +13,7 @@ final class DeveloperMode {
     static int normalize(int level){return Math.max(0,Math.min(2,level));}
     static int requiredLevel(String key){
         switch(key){
+            case "unlock_regions":return 2;
             case "portable_craft":case "portable_daily":case "portable_expedition":return 1;
             case "hide_uid":case "qr_login":case "skip_team_loading":case "no_avatar_switch_cd":return 1;
             default:return 0;

@@ -16,6 +16,7 @@ public final class DeveloperModeTest {
         prompt(mode);check(mode.submit("0329")&&mode.level()==2,"correct code enables level two");
         check(new DeveloperMode(mode.level()).level()==2,"restored level");
         for(int level=0;level<=2;level++){
+            check(DeveloperMode.allowed(level,"unlock_regions")== (level==2),"region unlock requires level two");
             DeveloperMode five=new DeveloperMode(level);taps(five,5);check(five.level()==level,"five taps do not act immediately");
             check(five.finishTaps(1400)==(level==0?1:3),"five idle action");check(five.level()==(level==0?1:0),"five idle final level");
             DeveloperMode six=new DeveloperMode(level);taps(six,6);check(six.finishTaps(2000)==0&&six.level()==level,"sixth tap cancels five");
