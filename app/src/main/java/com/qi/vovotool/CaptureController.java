@@ -61,7 +61,8 @@ public final class CaptureController {
     private final Runnable configLoop=new Runnable(){public void run(){
         if(stopped)return;
         try(Cursor c=activity.getContentResolver().query(Settings.URI,null,null,null,null)) {
-            if(c!=null && c.moveToFirst()) {
+            if(c==null||!c.moveToFirst())throw new IllegalStateException("Module configuration provider unavailable");
+            {
                 enabled=c.getInt(c.getColumnIndexOrThrow("enabled"))!=0;
                 capture=c.getInt(c.getColumnIndexOrThrow("capture"))!=0;
                 GameConfiguration.apply(activity,c);
@@ -96,7 +97,7 @@ public final class CaptureController {
             report.putIntArray("focusState",NativeBridge.focusState());
             report.putIntArray("windowState",new int[]{focusLosses,focusGains,touchDowns,swallowedGestures,swallowedEvents,windowFocused?1:0,swallowTouch?1:0,focusGuard?1:0,lastTouchSource,lastTouchAction});
             activity.getContentResolver().call(Settings.URI,"report",null,report);
-        } catch(Exception e) { Log.w("vovotool","Module configuration unavailable",e); }
+        } catch(Exception e) { main.post(()->{if(!stopped)Settings.requestConfigurationWakeup(activity);});Log.w("vovotool","Module configuration unavailable",e); }
         background.postDelayed(this,1000);
     }};
     private void showDailyNotice(int[] value){

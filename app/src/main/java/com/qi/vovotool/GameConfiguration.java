@@ -9,7 +9,8 @@ final class GameConfiguration {
     static void load(Context context){
         try(Cursor c=context.getContentResolver().query(Settings.URI,null,null,null,null)){
             if(c!=null&&c.moveToFirst())apply(context,c);
-        }catch(Exception error){android.util.Log.w("vovotool","Startup configuration unavailable; will retry on game resume",error);}
+            else Settings.requestConfigurationWakeup(context);
+        }catch(Exception error){Settings.requestConfigurationWakeup(context);android.util.Log.w("vovotool","Startup configuration unavailable; will retry on game resume",error);}
     }
     static void apply(Context context,Cursor c){
         NativeBridge.configure(flag(c,"enabled"),c.getFloat(c.getColumnIndexOrThrow("mouse_scale")),flag(c,"capture"),
