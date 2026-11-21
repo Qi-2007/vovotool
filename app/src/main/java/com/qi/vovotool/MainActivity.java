@@ -29,7 +29,7 @@ public final class MainActivity extends Activity {
     private boolean navigationReady;
     private final LinearLayout[] categories=new LinearLayout[4];
     private CategoryTabs categoryTabs;
-    private FrameLayout pages;
+    private SwipePages pages,categoryPages;
     private int selectedPage,selectedCategory;
     private MaterialUi ui;
     private DeveloperMode developerMode;
@@ -198,15 +198,17 @@ public final class MainActivity extends Activity {
         if(!ui.dark)getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR|View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
         LinearLayout shell=column();shell.setBackgroundColor(ui.background);
         shell.setOnApplyWindowInsetsListener((v,insets)->{v.setPadding(insets.getSystemWindowInsetLeft(),insets.getSystemWindowInsetTop(),insets.getSystemWindowInsetRight(),insets.getSystemWindowInsetBottom());return insets.consumeSystemWindowInsets();});
-        pages=new FrameLayout(this);shell.addView(pages,new LinearLayout.LayoutParams(-1,0,1));
+        pages=new SwipePages(this,index->selectPage(index));shell.addView(pages,new LinearLayout.LayoutParams(-1,0,1));
         homePage=page("沃沃头","为你的冒险，添一点顺手。 ");
         managePage=page("管理","按场景整理，按习惯调整。");
         String[] titles={"画面","操控","便携功能","其他功能"};
         String[] descriptions={"分辨率、帧率与画面效果","原生键鼠、镜头速度与触控板","合成、日委奖励与探索派遣","界面显示与实验功能"};
         categoryTabs=new CategoryTabs(this,ui,titles,index->selectCategory(index));
         managePage.addView(categoryTabs);
+        categoryPages=new SwipePages(this,index->selectCategory(index));
+        managePage.addView(categoryPages,new LinearLayout.LayoutParams(-1,-2));
         for(int i=0;i<4;i++){
-            categories[i]=column();managePage.addView(categories[i],new LinearLayout.LayoutParams(-1,-2));
+            categories[i]=column();categoryPages.addView(categories[i],new FrameLayout.LayoutParams(-1,-2));
             TextView description=text(categories[i],descriptions[i],14);description.setPadding(0,0,0,dp(16));
         }
         aboutPage=page("关于","简单、直接，专注你的体验。");
@@ -246,6 +248,7 @@ public final class MainActivity extends Activity {
             child.setVisibility(i==selectedPage?View.VISIBLE:View.GONE);
         }
         if(animate)reveal(pages.getChildAt(target),true,target>previous?1:-1);
+        pages.setPage(target,3);
         navigation.select(target,animate);navigationReady=true;
     }
     private void selectCategory(int category){
@@ -257,6 +260,7 @@ public final class MainActivity extends Activity {
             categories[i].setVisibility(i==selectedCategory?View.VISIBLE:View.GONE);
         }
         boolean animate=navigationReady&&previous!=target;
+        categoryPages.setPage(target,2+developerMode.level());
         categoryTabs.select(target,animate);
         reveal(categories[target],animate,target>previous?1:-1);
     }

@@ -6,6 +6,7 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.RectF;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.PathInterpolator;
@@ -26,6 +27,8 @@ final class FloatingNavigation extends ViewGroup {
     private ValueAnimator animator;
     private float pillLeft,pillWidth;
     private int selected;
+    private final HorizontalDrag drag;
+    private float dragOrigin,dragPosition;
     FloatingNavigation(Context context,MaterialUi ui,OnSelect action){
         super(context);this.ui=ui;setWillNotDraw(false);setBackground(ui.round(ui.navigationSurface,40));
         String[] names={"首页","管理","关于"};
@@ -37,8 +40,20 @@ final class FloatingNavigation extends ViewGroup {
             ImageView icon=new ImageView(context);icon.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);icons[i]=icon;item.addView(icon,new LinearLayout.LayoutParams(ui.dp(24),ui.dp(24)));
             TextView label=new TextView(context);label.setText(names[i]);label.setSingleLine(true);label.setGravity(Gravity.CENTER);label.setTextSize(15);label.setTypeface(null,android.graphics.Typeface.BOLD);label.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);labels[i]=label;item.addView(label,new LinearLayout.LayoutParams(0,-1));
         }
+        drag=new HorizontalDrag(this,new HorizontalDrag.Listener(){
+            public void start(float x){if(animator!=null)animator.cancel();dragOrigin=x;dragPosition=(pillLeft-ui.dp(8))/Math.max(1,unit());}
+            public void move(float x){
+                float position=Math.max(0,Math.min(2,dragPosition+(x-dragOrigin)/Math.max(1,unit())));
+                pillLeft=ui.dp(8)+unit()*position;pillWidth=unit()*1.65f;
+                for(int i=0;i<3;i++)expansion[i]=Math.max(0,1-Math.abs(position-i));
+                updateItems();requestLayout();invalidate();
+            }
+            public void end(boolean canceled){int target=canceled?selected:Math.round((pillLeft-ui.dp(8))/Math.max(1,unit()));if(target==selected)select(selected,true);else action.select(target);}
+        });
         updateItems();
     }
+    @Override public boolean onInterceptTouchEvent(MotionEvent event){return drag.intercept(event);}
+    @Override public boolean onTouchEvent(MotionEvent event){return drag.touch(event)||super.onTouchEvent(event);}
     private float unit(){return Math.max(0,getMeasuredWidth()-ui.dp(16))/3.65f;}
     private float targetLeft(int index){return ui.dp(8)+unit()*index;}
     void select(int index,boolean animate){

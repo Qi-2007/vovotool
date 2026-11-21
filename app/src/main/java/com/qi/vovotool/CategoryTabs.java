@@ -7,6 +7,7 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.RectF;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.animation.PathInterpolator;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -20,7 +21,9 @@ final class CategoryTabs extends LinearLayout {
     private final RectF pill=new RectF();
     private ValueAnimator animator;
     private float position;
-    private int availableCount=4;
+    private int availableCount=4,selected;
+    private final HorizontalDrag drag;
+    private float dragOrigin,dragPosition;
     CategoryTabs(Context context,MaterialUi ui,String[] names,OnSelect action){
         super(context);this.ui=ui;setWillNotDraw(false);setPadding(0,ui.dp(12),0,ui.dp(16));
         for(int i=0;i<tabs.length;i++){
@@ -29,7 +32,18 @@ final class CategoryTabs extends LinearLayout {
             tab.setTextColor(i==0?ui.primary:ui.muted);tab.setBackground(ui.feedback(Color.TRANSPARENT,24));ui.pressFeedback(tab);
             tab.setOnClickListener(v->action.select(index));addView(tab,new LayoutParams(0,-2,1));
         }
+        drag=new HorizontalDrag(this,new HorizontalDrag.Listener(){
+            public void start(float x){if(animator!=null)animator.cancel();dragOrigin=x;dragPosition=position;}
+            public void move(float x){
+                float width=Math.max(1,(getWidth()-getPaddingLeft()-getPaddingRight())/(float)availableCount);
+                position=Math.max(0,Math.min(availableCount-1,dragPosition+(x-dragOrigin)/width));
+                for(int i=0;i<tabs.length;i++)tabs[i].setTextColor(MaterialUi.blend(ui.muted,ui.primary,Math.max(0,1-Math.abs(position-i))));invalidate();
+            }
+            public void end(boolean canceled){int target=canceled?selected:Math.round(position);if(target==selected)select(selected,true);else action.select(target);}
+        });
     }
+    @Override public boolean onInterceptTouchEvent(MotionEvent event){return drag.intercept(event);}
+    @Override public boolean onTouchEvent(MotionEvent event){return drag.touch(event)||super.onTouchEvent(event);}
     void setAvailableCount(int count){
         availableCount=Math.max(2,Math.min(4,count));
         if(animator!=null)animator.cancel();
@@ -38,6 +52,7 @@ final class CategoryTabs extends LinearLayout {
         requestLayout();invalidate();
     }
     void select(int index,boolean animate){
+        selected=index;
         if(animator!=null)animator.cancel();
         for(int i=0;i<tabs.length;i++)tabs[i].setSelected(i==index);
         if(!animate||!isLaidOut()||!ValueAnimator.areAnimatorsEnabled()){
