@@ -8,6 +8,7 @@ import android.util.Log;
 
 public final class Settings {
     public static final String PACKAGE="com.qi.vovotool";
+    static final String TOUCHPAD_COMPAT="touchpad_compat";
     public static final String GAME="com.miHoYo.Yuanshen";
     public static final String VERSION="7.2.0_48751704_49008628";
     public static final Uri URI=Uri.parse("content://"+PACKAGE+".config/state");

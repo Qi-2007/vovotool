@@ -82,7 +82,8 @@ public final class MainActivity extends Activity {
         Switch hideUid=new Switch(this);hideUid.setText("隐藏 UID（右下角及派蒙菜单）");hideUid.setTextColor(Color.WHITE);hideUid.setChecked(prefs.getBoolean("hide_uid",true));hideUid.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("hide_uid",c).apply());layout.addView(hideUid);
         uidState=text(layout,"等待 UID 显示组件",14);
         layout=card(categories[3]);
-        Switch qr=new Switch(this);qr.setText("登录弹窗添加扫码登录入口（实验）");qr.setTextColor(Color.WHITE);qr.setChecked(prefs.getBoolean("qr_login",true));qr.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("qr_login",c).apply());layout.addView(qr);
+        Switch qr=new Switch(this);qr.setText("扫码登录入口");qr.setTextColor(Color.WHITE);qr.setChecked(prefs.getBoolean("qr_login",true));qr.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("qr_login",c).apply());layout.addView(qr);
+        text(layout,"在游戏登陆弹窗页左上角添加扫码登陆入口。",14);
         layout=card(categories[2]);
         Switch craft=new Switch(this);craft.setText("随身合成台");craft.setTextColor(Color.WHITE);craft.setChecked(prefs.getBoolean("portable_craft",true));craft.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("portable_craft",c).apply());layout.addView(craft);
         shortcutButton=button(layout,"设置快捷键 · "+craftShortcut(),v->recordShortcut("craft"));
@@ -123,11 +124,15 @@ public final class MainActivity extends Activity {
         text(layout,"触控板兼容",22);
         text(layout,"外接鼠标无需启动此项。仅适配 Lenovo 磁吸键盘的触控板，其他品牌请自行尝试。需要对模块进行 root 授权。",16);
         rootState=text(layout,"未启动",16);
-        button(layout,"启动触控板兼容",v->{
-            if(Build.VERSION.SDK_INT>=33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},100);
-            startForegroundService(new Intent(this,RootProxyService.class));
-        });
-        button(layout,"停止触控板兼容",v->stopService(new Intent(this,RootProxyService.class)));
+        Switch touchpadCompat=new Switch(this);touchpadCompat.setText("启用触控板兼容");
+        touchpadCompat.setChecked(prefs.getBoolean(Settings.TOUCHPAD_COMPAT,false));
+        touchpadCompat.setOnCheckedChangeListener((v,checked)->{
+            prefs.edit().putBoolean(Settings.TOUCHPAD_COMPAT,checked).apply();
+            if(checked&&Build.VERSION.SDK_INT>=33&&checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)
+                requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},100);
+            RootProxyService.reconcile(this);
+        });layout.addView(touchpadCompat);
+        text(layout,"开关状态会保存，开启后在启动游戏时自动连接。首次启用请授予 root 权限。",14);
 
         text(layout,"关闭操控主开关可恢复本次进程的输入基线；完整重载界面请重新启动游戏。模块不修改游戏文件或系统分区。",14);
         ui.styleTree(pages);
@@ -342,7 +347,7 @@ public final class MainActivity extends Activity {
         graphicsState.setText(GraphicsSettings.status(ConfigProvider.lastGraphicsState,ConfigProvider.lastRenderState,fresh));
         rootState.setText(RootProxyService.status);handler.postDelayed(this,1000);
     }};
-    @Override public void onResume(){super.onResume();Settings.grantGameAccess(this);
+    @Override public void onResume(){super.onResume();Settings.grantGameAccess(this);RootProxyService.reconcile(this);
         if(developerMode.level()!=Settings.developerLevel(prefs)){
             developerMode=new DeveloperMode(Settings.developerLevel(prefs));updateDeveloperUi();selectCategory(selectedCategory);
         }

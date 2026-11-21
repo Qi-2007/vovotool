@@ -6,6 +6,8 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
+import android.content.Context;
+import android.os.SystemClock;
 import android.os.IBinder;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -28,7 +30,26 @@ public final class RootProxyService extends Service {
     private final ExecutorService worker=Executors.newSingleThreadExecutor();
     private volatile java.lang.Process process;
     private volatile boolean stopped;
+    private static long nextStartAttempt;
+    private volatile long nextHelperAttempt;
 
+    // Called when the game reads configuration, and immediately when its saved switch changes.
+    static synchronized void reconcile(Context context){
+        if(!Settings.preferences(context).getBoolean(Settings.TOUCHPAD_COMPAT,false)){
+            nextStartAttempt=0;
+            if(instance!=null)context.stopService(new Intent(context,RootProxyService.class));
+            return;
+        }
+        RootProxyService service=instance;
+        if(service!=null&&!service.stopped){service.ensureHelper();return;}
+        long now=SystemClock.elapsedRealtime();if(now<nextStartAttempt)return;
+        nextStartAttempt=now+5000;
+        try{context.startForegroundService(new Intent(context,RootProxyService.class));}
+        catch(RuntimeException error){
+            nextStartAttempt=now+3000;status="等待游戏连接后重试启动";
+            android.util.Log.w("vovotool","Touchpad compatibility start deferred",error);
+        }
+    }
     @Override public void onCreate(){
         super.onCreate();instance=this;
         NotificationManager manager=getSystemService(NotificationManager.class);
@@ -37,10 +58,15 @@ public final class RootProxyService extends Service {
         Notification notification=new Notification.Builder(this,"input").setSmallIcon(android.R.drawable.ic_menu_manage).setContentTitle("沃沃头 · 触控板兼容").setContentText("仅在游戏捕获指针时转换触控板输入").setContentIntent(open).setOngoing(true).build();
         startForeground(10,notification);
     }
-    @Override public int onStartCommand(Intent intent,int flags,int startId){ensureHelper();return START_NOT_STICKY;}
+    @Override public int onStartCommand(Intent intent,int flags,int startId){
+        if(!Settings.preferences(this).getBoolean(Settings.TOUCHPAD_COMPAT,false)){stopSelf();return START_NOT_STICKY;}
+        ensureHelper();return START_NOT_STICKY;
+    }
     void ensureHelper(){
-        if(stopped || port!=0 || !starting.compareAndSet(false,true))return;
+        if(stopped||!Settings.preferences(this).getBoolean(Settings.TOUCHPAD_COMPAT,false)||port!=0||SystemClock.elapsedRealtime()<nextHelperAttempt||!starting.compareAndSet(false,true))return;
+        nextHelperAttempt=SystemClock.elapsedRealtime()+15000;
         worker.execute(()->{
+            if(stopped){starting.set(false);return;}
             StringBuilder generated=new StringBuilder();byte[] random=new byte[16];new SecureRandom().nextBytes(random);
             for(byte value:random)generated.append(String.format(java.util.Locale.ROOT,"%02x",value&255));
             String secret=generated.toString();
@@ -51,10 +77,10 @@ public final class RootProxyService extends Service {
                 java.lang.Process child=new ProcessBuilder("su","-c",command).redirectErrorStream(true).start();process=child;
                 try(BufferedReader reader=new BufferedReader(new InputStreamReader(child.getInputStream()))){
                     String line;
-                    while(!stopped && (line=reader.readLine())!=null){
+                    while((line=reader.readLine())!=null){
                         if(line.startsWith("READY ")){
                             int number=Integer.parseInt(line.substring(6).trim());
-                            if(number>0&&number<=65535){token=secret;port=number;status="已就绪，等待游戏输入";}
+                            if(number>0&&number<=65535){token=secret;port=number;if(stopped){stopProxy();break;}status="已就绪，等待游戏输入";}
                         }else if(!line.trim().isEmpty())status=line.length()>160?line.substring(0,160):line;
                     }
                 }
@@ -76,7 +102,7 @@ public final class RootProxyService extends Service {
     }
     @Override public void onDestroy(){
         stopped=true;stopProxy();if(process!=null)process.destroy();worker.shutdownNow();
-        instance=null;status="已停止";super.onDestroy();
+        if(instance==this)instance=null;status="已停止";super.onDestroy();
     }
     @Override public IBinder onBind(Intent intent){return null;}
 }

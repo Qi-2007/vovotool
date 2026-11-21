@@ -30,7 +30,7 @@ public final class XposedEntry implements IXposedHookLoadPackage {
                         Bundle report=new Bundle();report.putIntArray("state",new int[]{-10});
                         context.getContentResolver().call(Settings.URI,"report",null,report);return;
                     }
-                    NativeBridge.load(context);GraphicsSettings.load(context);installJavaHooks(context.getClassLoader());QrLoginBridge.install(context.getClassLoader());installed=true;
+                    NativeBridge.load(context);GameConfiguration.load(context);installJavaHooks(context.getClassLoader());QrLoginBridge.install(context.getClassLoader());installed=true;
                     XposedBridge.log("vovotool: module loaded for "+info.versionName);
                 } catch(Throwable e) { XposedBridge.log(e); }
             }

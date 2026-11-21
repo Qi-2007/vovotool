@@ -64,27 +64,14 @@ public final class CaptureController {
             if(c!=null && c.moveToFirst()) {
                 enabled=c.getInt(c.getColumnIndexOrThrow("enabled"))!=0;
                 capture=c.getInt(c.getColumnIndexOrThrow("capture"))!=0;
-                float scale=c.getFloat(c.getColumnIndexOrThrow("mouse_scale"));
-                float gain=c.getFloat(c.getColumnIndexOrThrow("touchpad_gain"));
-                int port=c.getInt(c.getColumnIndexOrThrow("proxy_port"));
-                String token=c.getString(c.getColumnIndexOrThrow("proxy_token"));
-                NativeBridge.configure(enabled,scale,capture,port,token,gain);
-                NativeBridge.configureAvatarSwitch(c.getInt(c.getColumnIndexOrThrow("no_avatar_switch_cd"))!=0);
-                NativeBridge.configureAvatarFade(c.getInt(c.getColumnIndexOrThrow("disable_character_fade"))!=0);
-                NativeBridge.configureTeamLoading(c.getInt(c.getColumnIndexOrThrow("skip_team_loading"))!=0);
-                NativeBridge.configureUid(c.getInt(c.getColumnIndexOrThrow("hide_uid"))!=0);
+                GameConfiguration.apply(activity,c);
                 focusGuard=c.getInt(c.getColumnIndexOrThrow("focus_guard"))!=0;
-                NativeBridge.configureFocusGuard(focusGuard);
-                NativeBridge.configureCraft(c.getInt(c.getColumnIndexOrThrow("portable_craft"))!=0);
                 craftKey=c.getInt(c.getColumnIndexOrThrow("craft_key"));
                 craftModifiers=c.getInt(c.getColumnIndexOrThrow("craft_meta"));
-                NativeBridge.configureDaily(c.getInt(c.getColumnIndexOrThrow("portable_daily"))!=0);
                 dailyKey=c.getInt(c.getColumnIndexOrThrow("daily_key"));
                 dailyModifiers=c.getInt(c.getColumnIndexOrThrow("daily_meta"));
-                NativeBridge.configureExpedition(c.getInt(c.getColumnIndexOrThrow("portable_expedition"))!=0);
                 expeditionKey=c.getInt(c.getColumnIndexOrThrow("expedition_key"));
                 expeditionModifiers=c.getInt(c.getColumnIndexOrThrow("expedition_meta"));
-                GraphicsSettings.configure(activity,c);
                 NativeBridge.requestRenderCapture(c.getLong(c.getColumnIndexOrThrow("render_capture")));
                 NativeBridge.requestLookRefresh(c.getLong(c.getColumnIndexOrThrow("look_refresh")));
             }
