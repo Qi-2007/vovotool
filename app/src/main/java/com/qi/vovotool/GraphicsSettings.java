@@ -11,7 +11,7 @@ import android.view.WindowManager;
 import android.widget.*;
 
 final class GraphicsSettings {
-    static final String[] KEYS={"graphics_enabled","render_resolution","render_width","render_height","target_fps","effect_enhance","veg_percent"};
+    static final String[] KEYS={"graphics_enabled","render_resolution","render_width","render_height","target_fps","system_fps_unlock","effect_enhance","veg_percent"};
     static final int[] FPS={0,30,45,60,90,120,144,165};
     static int[] screen(Context context){
         DisplayMetrics m=new DisplayMetrics();
@@ -31,6 +31,18 @@ final class GraphicsSettings {
         }catch(Exception error){android.util.Log.w("vovotool","Graphics startup configuration unavailable",error);}
     }
     static boolean validFps(int v){for(int f:FPS)if(v==f)return true;return false;}
+    /** HyperOS reports itself through the MIUI version code (V816+) or an "OS" build id. */
+    static boolean isHyperOs(){
+        try{
+            Class<?> properties=Class.forName("android.os.SystemProperties");
+            Object code=properties.getMethod("get",String.class).invoke(null,"ro.miui.ui.version.code");
+            if(code instanceof String){
+                try{if(Integer.parseInt((String)code)>=816)return true;}catch(NumberFormatException ignored){}
+            }
+        }catch(Throwable ignored){}
+        String incremental=android.os.Build.VERSION.INCREMENTAL;
+        return incremental!=null&&incremental.startsWith("OS");
+    }
     static String validate(int w,int h,int nw,int nh,int fps,int vegetation,boolean resolution){
         if(!validFps(fps)||vegetation<10||vegetation>100)return "帧率或植被距离不在支持范围";
         if(resolution&&(w<1280||h<720||w>nw||h>nh||w%4!=0||h%4!=0))return "分辨率须为 4 的倍数，至少 1280×720，且不超过屏幕原生尺寸";
@@ -78,6 +90,8 @@ final class GraphicsSettings {
         for(int i=0;i<FPS.length;i++){names[i]=FPS[i]==0?"跟随游戏":FPS[i]+" FPS";if(FPS[i]==p.getInt("target_fps",0))selection=i;}
         ArrayAdapter<String> adapter=new ArrayAdapter<>(c,android.R.layout.simple_spinner_item,names);adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);fps.setAdapter(adapter);fps.setSelection(selection);parent.addView(fps);
         label(c,parent,"实际帧率取决于设备和游戏负载",14);
+        Switch systemUnlock=toggle(c,parent,"解除HyperOS对于原神的帧率限制",p.getBoolean("system_fps_unlock",true));
+        if(!isHyperOs())systemUnlock.setVisibility(android.view.View.GONE);
         parent=ui.card(root);
         Switch effects=toggle(c,parent,"特效增强",p.getBoolean("effect_enhance",false));
         label(c,parent,"提高部分特效渲染尺寸，会增加 GPU 负载。",14);
@@ -93,11 +107,11 @@ final class GraphicsSettings {
         save.setOnClickListener(v->{try{
             int w=Integer.parseInt(width.getText().toString().trim()),h=Integer.parseInt(height.getText().toString().trim()),f=FPS[fps.getSelectedItemPosition()],g=10+veg.getProgress()*5;
             String error=validate(w,h,n[0],n[1],f,g,resolution.isChecked());if(error!=null){Toast.makeText(c,error,Toast.LENGTH_LONG).show();return;}
-            p.edit().putBoolean("graphics_enabled",active.isChecked()).putBoolean("render_resolution",resolution.isChecked()).putInt("render_width",w).putInt("render_height",h).putInt("target_fps",f).putBoolean("effect_enhance",effects.isChecked()).putInt("veg_percent",g).apply();
+            p.edit().putBoolean("graphics_enabled",active.isChecked()).putBoolean("render_resolution",resolution.isChecked()).putInt("render_width",w).putInt("render_height",h).putInt("target_fps",f).putBoolean("system_fps_unlock",systemUnlock.isChecked()).putBoolean("effect_enhance",effects.isChecked()).putInt("veg_percent",g).apply();
             Toast.makeText(c,"图形设置已保存，下次启动原神自动应用",Toast.LENGTH_LONG).show();
         }catch(NumberFormatException e){Toast.makeText(c,"请输入整数宽高",Toast.LENGTH_SHORT).show();}});
         Button reset=new Button(c);reset.setText("恢复游戏原值");parent.addView(reset);
-        reset.setOnClickListener(v->{SharedPreferences.Editor editor=p.edit();for(String key:KEYS)editor.remove(key);editor.apply();active.setChecked(false);resolution.setChecked(false);effects.setChecked(false);fps.setSelection(0);veg.setProgress(18);width.setText(Integer.toString(n[0]&~3));height.setText(Integer.toString(n[1]&~3));Toast.makeText(c,"已恢复默认，下次启动原神生效",Toast.LENGTH_LONG).show();});
+        reset.setOnClickListener(v->{SharedPreferences.Editor editor=p.edit();for(String key:KEYS)editor.remove(key);editor.apply();active.setChecked(false);resolution.setChecked(false);effects.setChecked(false);fps.setSelection(0);veg.setProgress(18);systemUnlock.setChecked(true);width.setText(Integer.toString(n[0]&~3));height.setText(Integer.toString(n[1]&~3));Toast.makeText(c,"已恢复默认，下次启动原神生效",Toast.LENGTH_LONG).show();});
         return status;
     }
     static String status(int[] s,int[] render,boolean fresh){
