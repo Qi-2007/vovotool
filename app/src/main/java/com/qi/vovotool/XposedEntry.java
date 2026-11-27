@@ -18,7 +18,11 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage;
 public final class XposedEntry implements IXposedHookLoadPackage {
     private static boolean installed;
     @Override public void handleLoadPackage(XC_LoadPackage.LoadPackageParam load) {
-        if("com.miui.powerkeeper".equals(load.packageName)){SystemFpsUnlock.install(load.classLoader);return;}
+        if("com.miui.powerkeeper".equals(load.packageName)){
+            if(HyperOs.detected())SystemFpsUnlock.install(load.classLoader);
+            else XposedBridge.log("vovotool: system frame rate hook skipped on non-HyperOS");
+            return;
+        }
         if(!Settings.GAME.equals(load.packageName) || !Settings.GAME.equals(load.processName))return;
         XposedHelpers.findAndHookMethod(Application.class,"attach",Context.class,new XC_MethodHook(){
             @Override protected void afterHookedMethod(MethodHookParam param) {

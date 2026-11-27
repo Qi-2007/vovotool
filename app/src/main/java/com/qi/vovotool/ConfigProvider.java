@@ -11,6 +11,7 @@ import android.os.Bundle;
 import android.os.Process;
 
 public final class ConfigProvider extends ContentProvider {
+    static final String SYSTEM_FPS_PATH="system_fps";
     static volatile long lastReport;
     static volatile long regionUnlockToken;
     static volatile int[] lastRegionUnlockState=new int[0];
@@ -31,24 +32,52 @@ public final class ConfigProvider extends ContentProvider {
     static volatile int[] lastUidState=new int[0];
     static volatile int[] lastCraftState=new int[0],lastDailyState=new int[0],lastQrState=new int[0],lastExpeditionState=new int[0];
     static volatile int[] lastFocusState=new int[0],lastWindowState=new int[0];
+    static volatile int[] lastSystemFpsState=new int[0];
     @Override public boolean onCreate(){Settings.grantGameAccess(getContext());return true;}
     private void checkCaller(){
         int uid=Binder.getCallingUid();if(uid==Process.myUid())return;
         String[] packages=getContext().getPackageManager().getPackagesForUid(uid);
-        if(packages!=null)for(String name:packages)if(Settings.GAME.equals(name)||SystemFpsUnlock.OWNER.equals(name))return;
+        if(packages!=null)for(String name:packages)if(Settings.GAME.equals(name))return;
         throw new SecurityException("Only the scoped game may read module configuration");
     }
+    private void checkSystemCaller(){
+        int uid=Binder.getCallingUid();if(uid==Process.myUid())return;
+        try{
+            if(uid==getContext().getPackageManager().getPackageUid(SystemFpsUnlock.OWNER,0))return;
+        }catch(Exception error){
+            // Package visibility may hide PowerKeeper from us; fall back to the
+            // package names registered for the calling UID.
+            String[] packages=getContext().getPackageManager().getPackagesForUid(uid);
+            if(packages!=null)for(String name:packages)if(SystemFpsUnlock.OWNER.equals(name))return;
+        }
+        throw new SecurityException("Only the HyperOS power service may read the frame rate policy");
+    }
     @Override public Cursor query(Uri uri,String[] projection,String selection,String[] args,String sort){
+        if(SYSTEM_FPS_PATH.equals(uri.getLastPathSegment()))return systemFpsCursor();
         checkCaller();
         long identity=Binder.clearCallingIdentity();
         try{RootProxyService.reconcile(getContext());}finally{Binder.restoreCallingIdentity(identity);}
         SharedPreferences p=Settings.preferences(getContext());
         if(!DeveloperMode.allowed(Settings.developerLevel(p),"unlock_regions")||!p.getBoolean("enabled",true))regionUnlockToken=0;
         MatrixCursor result=new MatrixCursor(new String[]{"enabled","capture","mouse_scale","touchpad_gain","proxy_port","proxy_token","hide_uid","focus_guard","portable_craft","craft_key","craft_meta","portable_daily","daily_key","daily_meta","qr_login","portable_expedition","expedition_key","expedition_meta","graphics_enabled","render_resolution","render_width","render_height","target_fps","system_fps_unlock","effect_enhance","veg_percent","render_path","render_capture","look_refresh","skip_team_loading","disable_character_fade","no_avatar_switch_cd","developer_level","region_unlock_token"});
-        result.addRow(new Object[]{p.getBoolean("enabled",true)?1:0,p.getBoolean("capture",true)?1:0,p.getFloat("mouse_scale",0.02f),p.getFloat("touchpad_gain",0.25f),RootProxyService.port,RootProxyService.token,Settings.effective(p,"hide_uid",true)?1:0,p.getBoolean("focus_guard",true)?1:0,Settings.effective(p,"portable_craft",true)?1:0,p.getInt("craft_key",Shortcut.DEFAULT_KEY),p.getInt("craft_meta",0)&Shortcut.META_MASK,Settings.effective(p,"portable_daily",true)?1:0,p.getInt("daily_key",Shortcut.DEFAULT_DAILY_KEY),p.getInt("daily_meta",0)&Shortcut.META_MASK,Settings.effective(p,"qr_login",true)?1:0,Settings.effective(p,"portable_expedition",true)?1:0,p.getInt("expedition_key",Shortcut.DEFAULT_EXPEDITION_KEY),p.getInt("expedition_meta",0)&Shortcut.META_MASK,p.getBoolean("graphics_enabled",false)?1:0,p.getBoolean("render_resolution",false)?1:0,p.getInt("render_width",0),p.getInt("render_height",0),p.getInt("target_fps",0),p.getBoolean("system_fps_unlock",true)?1:0,p.getBoolean("effect_enhance",false)?1:0,p.getInt("veg_percent",100),p.getInt("render_path",3),renderCaptureToken,lookRefreshToken,Settings.effective(p,"skip_team_loading",true)?1:0,p.getBoolean("disable_character_fade",true)?1:0,Settings.effective(p,"no_avatar_switch_cd",false)?1:0,Settings.developerLevel(p),DeveloperMode.allowed(Settings.developerLevel(p),"unlock_regions")&&android.os.SystemClock.elapsedRealtime()-regionUnlockToken<60000?regionUnlockToken:0L});
+        result.addRow(new Object[]{p.getBoolean("enabled",true)?1:0,p.getBoolean("capture",true)?1:0,p.getFloat("mouse_scale",0.02f),p.getFloat("touchpad_gain",0.25f),RootProxyService.port,RootProxyService.token,Settings.effective(p,"hide_uid",true)?1:0,p.getBoolean("focus_guard",true)?1:0,Settings.effective(p,"portable_craft",true)?1:0,p.getInt("craft_key",Shortcut.DEFAULT_KEY),p.getInt("craft_meta",0)&Shortcut.META_MASK,Settings.effective(p,"portable_daily",true)?1:0,p.getInt("daily_key",Shortcut.DEFAULT_DAILY_KEY),p.getInt("daily_meta",0)&Shortcut.META_MASK,Settings.effective(p,"qr_login",true)?1:0,Settings.effective(p,"portable_expedition",true)?1:0,p.getInt("expedition_key",Shortcut.DEFAULT_EXPEDITION_KEY),p.getInt("expedition_meta",0)&Shortcut.META_MASK,p.getBoolean("graphics_enabled",false)?1:0,p.getBoolean("render_resolution",false)?1:0,p.getInt("render_width",0),p.getInt("render_height",0),p.getInt("target_fps",0),p.getBoolean("system_fps_unlock",false)?1:0,p.getBoolean("effect_enhance",false)?1:0,p.getInt("veg_percent",100),p.getInt("render_path",3),renderCaptureToken,lookRefreshToken,Settings.effective(p,"skip_team_loading",true)?1:0,p.getBoolean("disable_character_fade",true)?1:0,Settings.effective(p,"no_avatar_switch_cd",false)?1:0,Settings.developerLevel(p),DeveloperMode.allowed(Settings.developerLevel(p),"unlock_regions")&&android.os.SystemClock.elapsedRealtime()-regionUnlockToken<60000?regionUnlockToken:0L});
+        return result;
+    }
+    /** Narrow view for the HyperOS power service: frame rate policy only, no side effects. */
+    private Cursor systemFpsCursor(){
+        checkSystemCaller();
+        SharedPreferences p=Settings.preferences(getContext());
+        MatrixCursor result=new MatrixCursor(new String[]{"enabled","system_fps_unlock","target_fps"});
+        result.addRow(new Object[]{p.getBoolean("enabled",true)?1:0,p.getBoolean("system_fps_unlock",false)?1:0,p.getInt("target_fps",0)});
         return result;
     }
     @Override public Bundle call(String method,String arg,Bundle extras){
+        if("report_system_fps".equals(method)&&extras!=null){
+            checkSystemCaller();
+            int[] state=extras.getIntArray("systemFpsState");
+            if(state!=null&&state.length==4)lastSystemFpsState=state;
+            return Bundle.EMPTY;
+        }
         if("unlock_regions".equals(method)&&(Binder.getCallingUid()==Process.myUid()||Binder.getCallingUid()==0)){
             SharedPreferences p=Settings.preferences(getContext());
             Bundle result=new Bundle();
@@ -77,6 +106,7 @@ public final class ConfigProvider extends ContentProvider {
             result.putIntArray("avatarSwitchState",lastAvatarSwitchState);
             result.putIntArray("avatarSwitchTraceState",lastAvatarSwitchTraceState);
             result.putIntArray("focusState",lastFocusState);result.putIntArray("windowState",lastWindowState);
+            result.putIntArray("systemFpsState",lastSystemFpsState);
             return result;
         }
         if("set_avatar_switch_cd".equals(method)&&(Binder.getCallingUid()==0||Binder.getCallingUid()==Process.myUid())){
@@ -112,7 +142,7 @@ public final class ConfigProvider extends ContentProvider {
             int fps=extras.getInt("target_fps",p.getInt("target_fps",0)),veg=extras.getInt("veg_percent",p.getInt("veg_percent",100));
             boolean res=extras.getBoolean("render_resolution",p.getBoolean("render_resolution",false));
             String error=GraphicsSettings.validate(w,h,n[0],n[1],fps,veg,res);if(error!=null)throw new IllegalArgumentException(error);
-            p.edit().putBoolean("graphics_enabled",extras.getBoolean("graphics_enabled",p.getBoolean("graphics_enabled",false))).putBoolean("render_resolution",res).putInt("render_width",w).putInt("render_height",h).putInt("target_fps",fps).putBoolean("system_fps_unlock",extras.getBoolean("system_fps_unlock",p.getBoolean("system_fps_unlock",true))).putInt("veg_percent",veg).putBoolean("effect_enhance",extras.getBoolean("effect_enhance",p.getBoolean("effect_enhance",false))).commit();return Bundle.EMPTY;
+            p.edit().putBoolean("graphics_enabled",extras.getBoolean("graphics_enabled",p.getBoolean("graphics_enabled",false))).putBoolean("render_resolution",res).putInt("render_width",w).putInt("render_height",h).putInt("target_fps",fps).putBoolean("system_fps_unlock",extras.getBoolean("system_fps_unlock",p.getBoolean("system_fps_unlock",false))).putInt("veg_percent",veg).putBoolean("effect_enhance",extras.getBoolean("effect_enhance",p.getBoolean("effect_enhance",false))).commit();return Bundle.EMPTY;
         }
         if(("set_render_path".equals(method)||"capture_render".equals(method)||"render_probe".equals(method))&&(Binder.getCallingUid()==0||Binder.getCallingUid()==Process.myUid())){
             Bundle result=new Bundle();

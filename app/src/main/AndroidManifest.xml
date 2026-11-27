@@ -5,7 +5,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <queries><package android:name="com.miHoYo.Yuanshen" /></queries>
+    <queries><package android:name="com.miHoYo.Yuanshen" /><package android:name="com.miui.powerkeeper" /></queries>
     <application android:forceQueryable="true" android:label="沃沃头" android:theme="@style/AppTheme" android:allowBackup="false" android:supportsRtl="true" android:extractNativeLibs="true" android:icon="@mipmap/ic_launcher">
         <meta-data android:name="xposedmodule" android:value="true" />
         <meta-data android:name="xposeddescription" android:value="原神原生 PC 界面、键鼠与触控板相对输入" />
