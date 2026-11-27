@@ -21,7 +21,7 @@ final class SystemFpsUnlock {
     private static final String DISPLAY_FRAME_SETTING = "com.miui.powerkeeper.statemachine.DisplayFrameSetting";
     private static final String[] GAME_PACKAGES = {
             "com.miHoYo.Yuanshen", "com.miHoYo.ys.mi", "com.miHoYo.ys.bilibili",
-            "com.miHoYo.GenshinImpact", "com.miHoYo.cloudgames.ys"
+            "com.miHoYo.GenshinImpact"
     };
     private static final long CACHE_MS = 3000;
     private static final String USER_FPS_EXTRA = "vovotool.mUserFps";
