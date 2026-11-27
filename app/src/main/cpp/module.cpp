@@ -55,6 +55,7 @@ bool applied=false;
 bool inputBaselineSaved=false;
 int64_t inputApplyRetryAt=0;
 P manager=0,input=0,binding=0,platform=0,keyboard=0,mouse=0,mouseSource=0,keyboardSource=0;
+P probedKeyboard=0,probedMouse=0;  // 国际服 probe 直接定位到的 Keyboard/Mouse 对象
 struct Baseline { int device=0,mode=0; uint8_t disableKeyboard=1,disableMouse=1,keyboard=0,mouse=0; } baseline;
 int64_t nowMs(){return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();}
 void log(const char* s){__android_log_write(ANDROID_LOG_INFO,"vovotool",s);}
@@ -67,9 +68,16 @@ bool readMemory(P p,void* dst,size_t n){
 template<class T>T read(P p,T fallback={}){T v;return readMemory(p,&v,sizeof(v))?v:fallback;}
 template<class T>void write(P p,T value){std::memcpy(reinterpret_cast<void*>(clean(p)),&value,sizeof(value));}
 bool classIs(P object,const char* name){
-    P klass=read<P>(object),text=read<P>(klass+0x50);char actual[80]{};
+    P klass=read<P>(object);char actual[80]{};
     const size_t length=std::strlen(name)+1;
-    return length<sizeof(actual)&&readMemory(text,actual,length)&&std::memcmp(actual,name,length)==0;
+    if(length>=sizeof(actual))return false;
+    // IL2CPP 类名偏移两服不同：国服 klass+0x50，国际服 klass+0x10。都试一遍。
+    const int nameOffsets[2]={0x50,0x10};
+    for(int i=0;i<2;i++){
+        const P text=read<P>(klass+nameOffsets[i]);
+        if(readMemory(text,actual,length)&&std::memcmp(actual,name,length)==0)return true;
+    }
+    return false;
 }
 // 在 holder 对象里找一个偏移，使 holder+offset 指向 name 类的实例；找不到返回 0。
 int locateSlot(P holder,int low,int high,const char* name){
@@ -99,8 +107,20 @@ bool probeLayout(P root){
     const P input=o.rootInput?read<P>(root+o.rootInput):0;
     const P config=o.rootConfig?read<P>(root+o.rootConfig):0;
     const P sources=o.rootSources?read<P>(root+o.rootSources):0;
-    const P keyboard=o.sourcesKeyboard&&sources?read<P>(sources+o.sourcesKeyboard):0;
-    const P mouse=o.sourcesMouse&&sources?read<P>(sources+o.sourcesMouse):0;
+    P keyboard=o.sourcesKeyboard&&sources?read<P>(sources+o.sourcesKeyboard):0;
+    P mouse=o.sourcesMouse&&sources?read<P>(sources+o.sourcesMouse):0;
+    // 国际服：Mouse/Keyboard 常是 root 的直接字段（如 root+0x5a80/0x5a88），
+    // 不在 holder 内。holder 方式找不到时，直接从 root 扫。
+    if(!classIs(mouse,"Mouse")){
+        const int mo=locateSlot(root,0x4000,0x10000,"Mouse");
+        if(mo){o.sourcesMouse=mo;mouse=read<P>(root+mo);}
+    }
+    if(!classIs(keyboard,"Keyboard")){
+        const int ko=locateSlot(root,0x4000,0x10000,"Keyboard");
+        if(ko){o.sourcesKeyboard=ko;keyboard=read<P>(root+ko);}
+        o.rootSources=0;  // 标记：keyboard/mouse 走缓存，不再经 holder
+    }
+    probedKeyboard=keyboard;probedMouse=mouse;
     o.configPlatform=locateSlot(config,0,0x200,"PlatformVars");
     o.inputBinding=locateSlot(input,0,0x200,"JGAPEPKBJJP");
     o.mouseSource=locateSlot(mouse,0,0x200,"UnityUnifiedMouseSource");
@@ -108,8 +128,12 @@ bool probeLayout(P root){
     o.keyboardMap=locateSlot(keyboard,0,0x200,"Int32[]");
     if(manager&&o.deviceType){const int v=read<int>(manager+o.deviceType,-1);if(v<0||v>2)o.deviceType=0;}
     if(input&&o.inputMode){const int v=read<int>(input+o.inputMode,-1);if(v<0||v>2)o.inputMode=0;}
-    const bool ok=o.rootManager&&o.rootInput&&o.rootSources&&o.rootConfig&&o.sourcesKeyboard&&
-                  o.sourcesMouse&&o.mouseSource&&o.keyboardSource&&o.deviceType&&o.inputMode;
+    // mouseSource/keyboardSource 只用于相对坐标键鼠输入，国际服结构不同探不到；
+    // 它们不是"显示隐藏 PC 选项"的必要条件，探不到就置 0 让对应 hook 安全跳过。
+    if(!classIs(read<P>(mouse+o.mouseSource), "UnityUnifiedMouseSource")) o.mouseSource=0;
+    if(!classIs(read<P>(keyboard+o.keyboardSource), "UnityUnifiedKeyboardSource")) o.keyboardSource=0;
+    const bool ok=o.rootManager&&o.rootInput&&o.rootConfig&&classIs(keyboard,"Keyboard")&&
+                  classIs(mouse,"Mouse")&&o.deviceType&&o.inputMode;
     if(ok){
         inoff::probed=true;
         log("Input chain probed for this build");
@@ -144,7 +168,7 @@ bool ready(P b){
         static int64_t nextProbeAt=0;
         if(nowMs()<nextProbeAt)return false;
         nextProbeAt=nowMs()+2000;
-        if(!probeLayout(b))return false;
+        if(!probeLayout(root))return false;
     }
     const auto& o=inoff::active;
     P m=o.rootManager?read<P>(root+o.rootManager):0;
@@ -152,13 +176,17 @@ bool ready(P b){
     P s=o.rootSources?read<P>(root+o.rootSources):0;
     P v=o.rootConfig?read<P>(root+o.rootConfig):0;
     P p=v&&o.configPlatform?read<P>(v+o.configPlatform):0;
-    P k=s&&o.sourcesKeyboard?read<P>(s+o.sourcesKeyboard):0;
-    P mou=s&&o.sourcesMouse?read<P>(s+o.sourcesMouse):0;
+    P k=runtimeIsOS&&probedKeyboard?probedKeyboard:(s&&o.sourcesKeyboard?read<P>(s+o.sourcesKeyboard):0);
+    P mou=runtimeIsOS&&probedMouse?probedMouse:(s&&o.sourcesMouse?read<P>(s+o.sourcesMouse):0);
     P bind=i&&o.inputBinding?read<P>(i+o.inputBinding):0;
     if(!classIs(m,"BOMCNPDGJOP")||!classIs(i,"MHCNPJOGAGH")||!classIs(bind,"JGAPEPKBJJP")||
        !classIs(v,"ConfigVars")||!classIs(p,"PlatformVars")||!classIs(k,"Keyboard")||!classIs(mou,"Mouse"))return false;
     P source=o.mouseSource?read<P>(mou+o.mouseSource):0,keys=o.keyboardSource?read<P>(k+o.keyboardSource):0;
-    if(!classIs(source,"UnityUnifiedMouseSource")||!classIs(keys,"UnityUnifiedKeyboardSource")||!classIs(read<P>(bind+0xa0),"Player"))return false;
+    if(!classIs(source,"UnityUnifiedMouseSource")){source=0;inoff::active.mouseSource=0;}
+    if(!classIs(keys,"UnityUnifiedKeyboardSource")){keys=0;inoff::active.keyboardSource=0;}
+    const P player=read<P>(bind+0xa0);
+    if(!runtimeIsOS&&!classIs(player,"Player"))return false;  // Player 校验是国服偏移，国际服跳过
+    (void)player;
     manager=m;input=i;binding=bind;platform=p;keyboard=k;mouse=mou;mouseSource=source;keyboardSource=keys;return true;
 }
 void apply(P b){
