@@ -135,6 +135,14 @@ bool probeLayout(P root){
     const bool ok=o.rootManager&&o.rootInput&&o.rootConfig&&classIs(keyboard,"Keyboard")&&
                   classIs(mouse,"Mouse")&&o.deviceType&&o.inputMode;
     if(ok){
+        // 国际服：探测 cursor 字段（PC 鼠标模式下值为 -1），供 Java 层 pointer capture 判定。
+        // 国服 cursor 是硬编码 0x340，国际服布局不同，这里运行时扫 manager 找 -1。
+        if(runtimeIsOS&&manager&&!o.cursor){
+            for(int off=0;off<=0x400;off+=4){
+                if(read<int>(manager+off,0)==-1){o.cursor=off;break;}
+            }
+            __android_log_print(ANDROID_LOG_INFO,"vovotool","OS cursor probe: offset=%x value=%d",o.cursor,read<int>(manager+o.cursor,-999));
+        }
         inoff::probed=true;
         log("Input chain probed for this build");
     }else{
@@ -217,21 +225,30 @@ void apply(P b){
     const auto& layout=inoff::active;
     if(layout.platformDisableKeyboard)write<uint8_t>(platform+layout.platformDisableKeyboard,0);
     if(layout.platformDisableMouse)write<uint8_t>(platform+layout.platformDisableMouse,0);
-    auto setController=reinterpret_cast<ControllerSetter>(b+profile::setController);
-    setController(reinterpret_cast<void*>(keyboard),true,nullptr);
-    setController(reinterpret_cast<void*>(mouse),true,nullptr);
-    originalDeviceSetter(reinterpret_cast<void*>(manager),1,true,nullptr);
+    if(!runtimeIsOS){
+        auto setController=reinterpret_cast<ControllerSetter>(b+profile::setController);
+        setController(reinterpret_cast<void*>(keyboard),true,nullptr);
+        setController(reinterpret_cast<void*>(mouse),true,nullptr);
+        reinterpret_cast<MapsSetter>(b+profile::selectMaps)(reinterpret_cast<void*>(binding),2,nullptr);
+    }else{
+        // 国际服：keyboard controller 启用是安全的（崩溃定位显示 mouse 那次才 pc=0）。
+        // mouse 的 setController 与 selectMaps 是草稿地址/对象不匹配，会概率性崩溃，跳过。
+        if(keyboard)reinterpret_cast<ControllerSetter>(b+profile::setController)(reinterpret_cast<void*>(keyboard),true,nullptr);
+    }
+    if(originalDeviceSetter)originalDeviceSetter(reinterpret_cast<void*>(manager),1,true,nullptr);
     if(inoff::active.inputMode)write<int>(input+inoff::active.inputMode,2);
-    reinterpret_cast<MapsSetter>(b+profile::selectMaps)(reinterpret_cast<void*>(binding),2,nullptr);
-    applied=true;stage=2;log("PC UI and Rewired keyboard/mouse rule set applied");
+    applied=true;stage=2;
+    log(runtimeIsOS?"OS PC UI applied (keyboard enabled, mouse source unresolved)":"PC UI and Rewired keyboard/mouse rule set applied");
 }
 void restore(P b){
     if(!applied)return;
     if(inoff::active.inputMode)write<int>(input+inoff::active.inputMode,baseline.mode);
-    reinterpret_cast<MapsSetter>(b+profile::selectMaps)(reinterpret_cast<void*>(binding),baseline.mode,nullptr);
-    originalDeviceSetter(reinterpret_cast<void*>(manager),baseline.device,true,nullptr);
+    if(!runtimeIsOS){
+        reinterpret_cast<MapsSetter>(b+profile::selectMaps)(reinterpret_cast<void*>(binding),baseline.mode,nullptr);
+        reinterpret_cast<ControllerSetter>(b+profile::setController)(reinterpret_cast<void*>(mouse),baseline.mouse!=0,nullptr);
+    }
+    if(originalDeviceSetter)originalDeviceSetter(reinterpret_cast<void*>(manager),baseline.device,true,nullptr);
     reinterpret_cast<ControllerSetter>(b+profile::setController)(reinterpret_cast<void*>(keyboard),baseline.keyboard!=0,nullptr);
-    reinterpret_cast<ControllerSetter>(b+profile::setController)(reinterpret_cast<void*>(mouse),baseline.mouse!=0,nullptr);
     if(inoff::active.platformDisableKeyboard)write<uint8_t>(platform+inoff::active.platformDisableKeyboard,baseline.disableKeyboard);
     if(inoff::active.platformDisableMouse)write<uint8_t>(platform+inoff::active.platformDisableMouse,baseline.disableMouse);
     restoreLookFactors();applied=false;inputBaselineSaved=false;inputApplyRetryAt=0;stage=3;captured=false;log("Runtime input baseline restored");
