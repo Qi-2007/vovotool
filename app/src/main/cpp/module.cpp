@@ -1,5 +1,9 @@
 #include "lsposed_native.hpp"
+// 一份构建适配双服：默认国服表，运行时按进程名切换到国际服表。
 #include "profile.hpp"
+#include "profile_os.hpp"
+#include "apply_os.inc"
+#include "input_offsets.hpp"
 #include "protocol.hpp"
 #include <jni.h>
 #include <android/log.h>
@@ -67,6 +71,57 @@ bool classIs(P object,const char* name){
     const size_t length=std::strlen(name)+1;
     return length<sizeof(actual)&&readMemory(text,actual,length)&&std::memcmp(actual,name,length)==0;
 }
+// 在 holder 对象里找一个偏移，使 holder+offset 指向 name 类的实例；找不到返回 0。
+int locateSlot(P holder,int low,int high,const char* name){
+    if(holder<0x10000)return 0;
+    for(int offset=low;offset<=high;offset+=8){
+        const P value=read<P>(holder+offset);
+        if(value>0x10000&&classIs(value,name))return offset;
+    }
+    return 0;
+}
+// 国际服专用：从单例根把整条链路探出来。每一项都要过类名核对，探不到就当没就绪，
+// 宁可功能不起来也不往错地址写。
+bool probeLayout(P root){
+    auto& o=inoff::active;
+    o.rootManager=locateSlot(root,0x4000,0x10000,"BOMCNPDGJOP");
+    o.rootInput=locateSlot(root,0x4000,0x10000,"MHCNPJOGAGH");
+    o.rootConfig=locateSlot(root,0x400,0x3000,"ConfigVars");
+    o.rootSources=0;o.sourcesKeyboard=0;o.sourcesMouse=0;
+    for(int offset=0x400;offset<=0x3000&&!o.rootSources;offset+=8){
+        const P holder=read<P>(root+offset);
+        if(holder<0x10000)continue;
+        const int keyboard=locateSlot(holder,0,0x200,"Keyboard");
+        if(!keyboard)continue;
+        o.rootSources=offset;o.sourcesKeyboard=keyboard;o.sourcesMouse=locateSlot(holder,0,0x200,"Mouse");
+    }
+    const P manager=o.rootManager?read<P>(root+o.rootManager):0;
+    const P input=o.rootInput?read<P>(root+o.rootInput):0;
+    const P config=o.rootConfig?read<P>(root+o.rootConfig):0;
+    const P sources=o.rootSources?read<P>(root+o.rootSources):0;
+    const P keyboard=o.sourcesKeyboard&&sources?read<P>(sources+o.sourcesKeyboard):0;
+    const P mouse=o.sourcesMouse&&sources?read<P>(sources+o.sourcesMouse):0;
+    o.configPlatform=locateSlot(config,0,0x200,"PlatformVars");
+    o.inputBinding=locateSlot(input,0,0x200,"JGAPEPKBJJP");
+    o.mouseSource=locateSlot(mouse,0,0x200,"UnityUnifiedMouseSource");
+    o.keyboardSource=locateSlot(keyboard,0,0x200,"UnityUnifiedKeyboardSource");
+    o.keyboardMap=locateSlot(keyboard,0,0x200,"Int32[]");
+    if(manager&&o.deviceType){const int v=read<int>(manager+o.deviceType,-1);if(v<0||v>2)o.deviceType=0;}
+    if(input&&o.inputMode){const int v=read<int>(input+o.inputMode,-1);if(v<0||v>2)o.inputMode=0;}
+    const bool ok=o.rootManager&&o.rootInput&&o.rootSources&&o.rootConfig&&o.sourcesKeyboard&&
+                  o.sourcesMouse&&o.mouseSource&&o.keyboardSource&&o.deviceType&&o.inputMode;
+    if(ok){
+        inoff::probed=true;
+        log("Input chain probed for this build");
+    }else{
+        __android_log_print(ANDROID_LOG_INFO,"vovotool",
+            "Input chain probe incomplete: mgr=%d inp=%d src=%d cfg=%d kb=%d mou=%d mouseSrc=%d kbdSrc=%d dev=%d mode=%d",
+            o.rootManager?1:0,o.rootInput?1:0,o.rootSources?1:0,o.rootConfig?1:0,
+            o.sourcesKeyboard?1:0,o.sourcesMouse?1:0,o.mouseSource?1:0,o.keyboardSource?1:0,
+            o.deviceType?1:0,o.inputMode?1:0);
+    }
+    return ok;
+}
 #include "uid_visibility.hpp"
 #include "crafting.hpp"
 #include "expedition.hpp"
@@ -81,13 +136,28 @@ bool classIs(P object,const char* name){
 #include "avatar_switch.hpp"
 #include "region_unlock.hpp"
 bool ready(P b){
-    if((read<uint8_t>(b+0x158099bc)&1)==0)return false;
+    if((read<uint8_t>(b+profile::readyFlag)&1)==0)return false;
     P root=read<P>(b+profile::singletonRoot);
-    P m=read<P>(root+0x8bc0),i=read<P>(root+0x8e20),s=read<P>(root+0x1030),v=read<P>(root+0xf48);
-    P p=read<P>(v+0x88),k=read<P>(s+0x58),mou=read<P>(s+0x30),bind=read<P>(i+0x20);
+    if(root<0x10000)return false;
+    if(runtimeIsOS && !inoff::probed){
+        // 游戏初期 Unity 对象链尚未建好，失败要重试；节流避免每帧全表扫描。
+        static int64_t nextProbeAt=0;
+        if(nowMs()<nextProbeAt)return false;
+        nextProbeAt=nowMs()+2000;
+        if(!probeLayout(b))return false;
+    }
+    const auto& o=inoff::active;
+    P m=o.rootManager?read<P>(root+o.rootManager):0;
+    P i=o.rootInput?read<P>(root+o.rootInput):0;
+    P s=o.rootSources?read<P>(root+o.rootSources):0;
+    P v=o.rootConfig?read<P>(root+o.rootConfig):0;
+    P p=v&&o.configPlatform?read<P>(v+o.configPlatform):0;
+    P k=s&&o.sourcesKeyboard?read<P>(s+o.sourcesKeyboard):0;
+    P mou=s&&o.sourcesMouse?read<P>(s+o.sourcesMouse):0;
+    P bind=i&&o.inputBinding?read<P>(i+o.inputBinding):0;
     if(!classIs(m,"BOMCNPDGJOP")||!classIs(i,"MHCNPJOGAGH")||!classIs(bind,"JGAPEPKBJJP")||
        !classIs(v,"ConfigVars")||!classIs(p,"PlatformVars")||!classIs(k,"Keyboard")||!classIs(mou,"Mouse"))return false;
-    P source=read<P>(mou+0x148),keys=read<P>(k+0x100);
+    P source=o.mouseSource?read<P>(mou+o.mouseSource):0,keys=o.keyboardSource?read<P>(k+o.keyboardSource):0;
     if(!classIs(source,"UnityUnifiedMouseSource")||!classIs(keys,"UnityUnifiedKeyboardSource")||!classIs(read<P>(bind+0xa0),"Player"))return false;
     manager=m;input=i;binding=bind;platform=p;keyboard=k;mouse=mou;mouseSource=source;keyboardSource=keys;return true;
 }
@@ -96,7 +166,13 @@ void apply(P b){
     applyCalls++;
     if(!applied){
         if(!inputBaselineSaved){
-            baseline={read<int>(manager+0x370),read<int>(input+0x1a4),read<uint8_t>(platform+0x10),read<uint8_t>(platform+0x11),read<uint8_t>(keyboard+0xcd),read<uint8_t>(mouse+0xcd)};
+            const auto& o=inoff::active;
+            baseline={o.deviceType?read<int>(manager+o.deviceType):-1,
+                      o.inputMode?read<int>(input+o.inputMode):-1,
+                      static_cast<uint8_t>(o.platformDisableKeyboard?read<uint8_t>(platform+o.platformDisableKeyboard):0),
+                      static_cast<uint8_t>(o.platformDisableMouse?read<uint8_t>(platform+o.platformDisableMouse):0),
+                      static_cast<uint8_t>(o.keyboardCd?read<uint8_t>(keyboard+o.keyboardCd):0),
+                      static_cast<uint8_t>(o.mouseCd?read<uint8_t>(mouse+o.mouseCd):0)};
             inputBaselineSaved=true;
         }
         // A main page created for mobile retains its controls and cursor policy
@@ -110,26 +186,30 @@ void apply(P b){
             log("Explicit in-world PC activation completed through native UI transition");
         }
     }
-    write<uint8_t>(platform+0x10,0);write<uint8_t>(platform+0x11,0);
+    const auto& layout=inoff::active;
+    if(layout.platformDisableKeyboard)write<uint8_t>(platform+layout.platformDisableKeyboard,0);
+    if(layout.platformDisableMouse)write<uint8_t>(platform+layout.platformDisableMouse,0);
     auto setController=reinterpret_cast<ControllerSetter>(b+profile::setController);
     setController(reinterpret_cast<void*>(keyboard),true,nullptr);
     setController(reinterpret_cast<void*>(mouse),true,nullptr);
     originalDeviceSetter(reinterpret_cast<void*>(manager),1,true,nullptr);
-    write<int>(input+0x1a4,2);
+    if(inoff::active.inputMode)write<int>(input+inoff::active.inputMode,2);
     reinterpret_cast<MapsSetter>(b+profile::selectMaps)(reinterpret_cast<void*>(binding),2,nullptr);
     applied=true;stage=2;log("PC UI and Rewired keyboard/mouse rule set applied");
 }
 void restore(P b){
     if(!applied)return;
-    write<int>(input+0x1a4,baseline.mode);
+    if(inoff::active.inputMode)write<int>(input+inoff::active.inputMode,baseline.mode);
     reinterpret_cast<MapsSetter>(b+profile::selectMaps)(reinterpret_cast<void*>(binding),baseline.mode,nullptr);
     originalDeviceSetter(reinterpret_cast<void*>(manager),baseline.device,true,nullptr);
     reinterpret_cast<ControllerSetter>(b+profile::setController)(reinterpret_cast<void*>(keyboard),baseline.keyboard!=0,nullptr);
     reinterpret_cast<ControllerSetter>(b+profile::setController)(reinterpret_cast<void*>(mouse),baseline.mouse!=0,nullptr);
-    write<uint8_t>(platform+0x10,baseline.disableKeyboard);write<uint8_t>(platform+0x11,baseline.disableMouse);
+    if(inoff::active.platformDisableKeyboard)write<uint8_t>(platform+inoff::active.platformDisableKeyboard,baseline.disableKeyboard);
+    if(inoff::active.platformDisableMouse)write<uint8_t>(platform+inoff::active.platformDisableMouse,baseline.disableMouse);
     restoreLookFactors();applied=false;inputBaselineSaved=false;inputApplyRetryAt=0;stage=3;captured=false;log("Runtime input baseline restored");
 }
-bool pcModeLocked(){return focusGuard&&enabled&&stage==2&&applied&&read<int>(manager+0x370,-1)==1&&read<int>(input+0x1a4,-1)==2;}
+bool pcModeLocked(){return focusGuard&&enabled&&stage==2&&applied&&
+    read<int>(manager+inoff::active.deviceType,-1)==1&&read<int>(input+inoff::active.inputMode,-1)==2;}
 void deviceSetterHook(void* self,int device,bool refresh,void* method){
     deviceRequests++;lastDevice=device;
     if(reinterpret_cast<P>(self)==manager&&device!=1&&pcModeLocked()){
@@ -176,11 +256,11 @@ void tickHook(void* self,void* method){
     try {
         if(b)updateGraphics(b);
         if(b&&ready(b)&&reinterpret_cast<P>(self)==manager){
-            if(enabled){if(!applied||read<int>(manager+0x370)!=1||read<int>(input+0x1a4)!=2)apply(b);}
+            if(enabled){if(!applied||read<int>(manager+inoff::active.deviceType)!=1||read<int>(input+inoff::active.inputMode)!=2)apply(b);}
             else restore(b);
             updateLookFactors();
             updateAvatarFade(b);
-            cursor=read<int>(manager+0x340,1000);inputMode=read<int>(input+0x1a4,-1);
+            cursor=read<int>(manager+inoff::active.cursor,1000);inputMode=read<int>(input+inoff::active.inputMode,-1);
             updateUidVisibility(b);
             updateCrafting(b);
             updateExpedition(b);
@@ -215,7 +295,8 @@ void mouseHook(void* self,void* data,void* method){
 void keyboardHook(void* self,void* data,void* method){
     originalKeyboard(self,data,method);
     if(!enabled||!applied||reinterpret_cast<P>(self)!=keyboardSource)return;
-    P keys=read<P>(reinterpret_cast<P>(data)+0x10),map=read<P>(keyboard+0x108);
+    if(!inoff::active.keyboardMap)return;
+    P keys=read<P>(reinterpret_cast<P>(data)+0x10),map=read<P>(keyboard+inoff::active.keyboardMap);
     if(!classIs(keys,"Boolean[]")||!classIs(map,"Int32[]"))return;
     int count=read<int>(keys+0x18),length=read<int>(map+0x18);
     if(count!=132||length<=271||length>512)return;
@@ -232,17 +313,49 @@ void keyboardHook(void* self,void* data,void* method){
 void install(P address){
     std::lock_guard<std::mutex> guard(installMutex);
     if(base||!hookFunction)return;
-    for(const auto& pin:profile::pins){unsigned char bytes[16];
+    for(int pi=0;pi<profile::pinsCount;++pi){const auto& pin=profile::pins[pi];unsigned char bytes[16]={};
         if(!readMemory(address+pin.rva,bytes,16)||std::memcmp(bytes,pin.bytes,16)!=0){stage=-1;log("Version/code fingerprint mismatch; no hooks installed");return;}}
-    if(hookFunction(reinterpret_cast<void*>(address+profile::setDevice),reinterpret_cast<void*>(deviceSetterHook),reinterpret_cast<void**>(&originalDeviceSetter))!=0){stage=-2;log("UI device guard installation failed");return;}
-    if(hookFunction(reinterpret_cast<void*>(address+profile::switchInputMode),reinterpret_cast<void*>(modeSwitchHook),reinterpret_cast<void**>(&originalModeSwitch))!=0){stage=-2;log("Input mode guard installation failed");return;}
-    if(hookFunction(reinterpret_cast<void*>(address+profile::uidTextSetter),reinterpret_cast<void*>(uidTextHook),reinterpret_cast<void**>(&originalUidText))!=0){stage=-2;log("UID text hook installation failed");return;}
-    if(hookFunction(reinterpret_cast<void*>(address+profile::textPopulateMesh),reinterpret_cast<void*>(uidMeshHook),reinterpret_cast<void**>(&originalTextMesh))!=0){stage=-2;log("UID discovery hook installation failed");return;}
-    if(hookFunction(reinterpret_cast<void*>(address+profile::escapeRoutePredicate),reinterpret_cast<void*>(escapeRouteHook),reinterpret_cast<void**>(&originalEscapeRoute))!=0){stage=-2;log("Escape route hook installation failed");return;}
-    if(hookFunction(reinterpret_cast<void*>(address+profile::keyboardUpdate),reinterpret_cast<void*>(keyboardHook),reinterpret_cast<void**>(&originalKeyboard))!=0){stage=-2;log("Keyboard hook installation failed");return;}
-    if(hookFunction(reinterpret_cast<void*>(address+profile::mouseUpdate),reinterpret_cast<void*>(mouseHook),reinterpret_cast<void**>(&originalMouse))!=0){stage=-2;log("Mouse hook installation failed");return;}
-    if(hookFunction(reinterpret_cast<void*>(address+profile::tick),reinterpret_cast<void*>(tickHook),reinterpret_cast<void**>(&originalTick))!=0){stage=-2;log("Tick hook installation failed");return;}
-    base=address;stage=1;installLookFactors(address);installTouchLook(address);installMapMouse(address);installTeamLoading(address);installAvatarFade(address);installAvatarSwitch(address);installPhoto(address);installGraphics(address);installRegionUnlock(address);log("Native hooks installed for pinned 7.2 ARM64 library");
+    // 国际服表里未定位的条目是 0，跳过不装，不能拿 base+0 去 hook
+    auto hook=[&](uintptr_t offset,void* replacement,void** original)->bool{
+        if(!offset){log("Hook skipped: target unresolved for this build");return true;}
+        return hookFunction(reinterpret_cast<void*>(address+offset),replacement,original)==0;
+    };
+#ifdef VOVO_NO_HOOKS
+    base=address;stage=1;log("DIAG build: no hooks installed");return;
+#endif
+#ifndef VOVO_NO_UI
+    if(!hook(profile::setDevice,reinterpret_cast<void*>(deviceSetterHook),reinterpret_cast<void**>(&originalDeviceSetter))){stage=-2;log("UI device guard installation failed");return;}
+#endif
+#ifndef VOVO_NO_UI
+    if(!hook(profile::switchInputMode,reinterpret_cast<void*>(modeSwitchHook),reinterpret_cast<void**>(&originalModeSwitch))){stage=-2;log("Input mode guard installation failed");return;}
+#endif
+#ifndef VOVO_NO_UID
+    if(!hook(profile::uidTextSetter,reinterpret_cast<void*>(uidTextHook),reinterpret_cast<void**>(&originalUidText))){stage=-2;log("UID text hook installation failed");return;}
+#endif
+#ifndef VOVO_NO_UIDMESH
+    if(!hook(profile::textPopulateMesh,reinterpret_cast<void*>(uidMeshHook),reinterpret_cast<void**>(&originalTextMesh))){stage=-2;log("UID discovery hook installation failed");return;}
+#endif
+#ifndef VOVO_NO_ESCAPE
+    if(!hook(profile::escapeRoutePredicate,reinterpret_cast<void*>(escapeRouteHook),reinterpret_cast<void**>(&originalEscapeRoute))){stage=-2;log("Escape route hook installation failed");return;}
+#endif
+#ifndef VOVO_NO_INPUT
+    if(!hook(profile::keyboardUpdate,reinterpret_cast<void*>(keyboardHook),reinterpret_cast<void**>(&originalKeyboard))){stage=-2;log("Keyboard hook installation failed");return;}
+#endif
+#ifndef VOVO_NO_MOUSE
+    if(!hook(profile::mouseUpdate,reinterpret_cast<void*>(mouseHook),reinterpret_cast<void**>(&originalMouse))){stage=-2;log("Mouse hook installation failed");return;}
+#endif
+#ifndef VOVO_NO_TICK
+    if(!hook(profile::tick,reinterpret_cast<void*>(tickHook),reinterpret_cast<void**>(&originalTick))){stage=-2;log("Tick hook installation failed");return;}
+#endif
+    base=address;stage=1;
+    if(runtimeIsOS){
+        // 国际服：只装核心 + 已验证的画质钩子，PC 键鼠等其他功能暂不启用。
+        installGraphics(address);
+        log("OS build: core hooks + verified graphics hooks installed");
+    }else{
+        installLookFactors(address);installTouchLook(address);installMapMouse(address);installTeamLoading(address);installAvatarFade(address);installAvatarSwitch(address);installPhoto(address);installGraphics(address);installRegionUnlock(address);
+    }
+    log("Native hooks installed for pinned 7.2 ARM64 library");
 }
 int findModule(dl_phdr_info* info,size_t,void*){
     const char* name=info->dlpi_name;
@@ -251,8 +364,19 @@ int findModule(dl_phdr_info* info,size_t,void*){
 void loaded(const char* name,void*){if(name&&std::strstr(name,"libyuanshen.so"))dl_iterate_phdr(findModule,nullptr);}
 }
 
+static bool runningAsOS(){
+    // /proc/self/cmdline 在游戏主进程里就是包名。
+    FILE* f=fopen("/proc/self/cmdline","rb");if(!f)return false;
+    char buf[256]={};size_t n=fread(buf,1,sizeof(buf)-1,f);fclose(f);
+    std::string cmd(buf,n>0?n:0);
+    bool os=cmd.find("com.miHoYo.GenshinImpact")!=std::string::npos;
+    log(os?"Runtime profile: OS (GenshinImpact)":"Runtime profile: CN (Yuanshen)");
+    return os;
+}
 extern "C" __attribute__((visibility("default"),used)) ModuleLoaded native_init(const NativeAPIEntries* api){
     if(!api||!api->hook_func)return nullptr;
+    runtimeIsOS=runningAsOS();
+    if(runtimeIsOS){apply_os_profile();inoff::apply_os_layout();}
     hookFunction=api->hook_func;dl_iterate_phdr(findModule,nullptr);return loaded;
 }
 extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM*,void*){log("JNI loaded");return JNI_VERSION_1_6;}

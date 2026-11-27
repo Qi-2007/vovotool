@@ -5,3 +5,14 @@
 __pycache__/
 *.pyc
 local.properties
+
+# 国际服地址定位的扫描草稿（本地保留，不入库）
+/os_callmap.json
+/os_callmap2.json
+/os_fpscan.json
+/os_profile_draft.json
+/os_subset.md
+/pin_report.json
+
+# 本地依赖缓存（脚本生成，不入库）
+/deps/

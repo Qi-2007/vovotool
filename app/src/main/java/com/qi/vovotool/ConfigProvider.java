@@ -35,14 +35,15 @@ public final class ConfigProvider extends ContentProvider {
     private void checkCaller(){
         int uid=Binder.getCallingUid();if(uid==Process.myUid())return;
         String[] packages=getContext().getPackageManager().getPackagesForUid(uid);
-        if(packages!=null)for(String name:packages)if(Settings.GAME.equals(name))return;
+        if(packages!=null)for(String name:packages)if(Settings.isGame(name))return;
         throw new SecurityException("Only the scoped game may read module configuration");
     }
     @Override public Cursor query(Uri uri,String[] projection,String selection,String[] args,String sort){
         checkCaller();
         long identity=Binder.clearCallingIdentity();
         try{RootProxyService.reconcile(getContext());}finally{Binder.restoreCallingIdentity(identity);}
-        SharedPreferences p=Settings.preferences(getContext());
+        // 游戏进程按自己的包名读对应区服的配置，主页选择只决定启动哪个游戏。
+        SharedPreferences p=Settings.preferencesForCaller(getContext(),Binder.getCallingUid());
         if(!DeveloperMode.allowed(Settings.developerLevel(p),"unlock_regions")||!p.getBoolean("enabled",true))regionUnlockToken=0;
         MatrixCursor result=new MatrixCursor(new String[]{"enabled","capture","mouse_scale","touchpad_gain","proxy_port","proxy_token","hide_uid","focus_guard","portable_craft","craft_key","craft_meta","portable_daily","daily_key","daily_meta","qr_login","portable_expedition","expedition_key","expedition_meta","graphics_enabled","render_resolution","render_width","render_height","target_fps","effect_enhance","veg_percent","render_path","render_capture","look_refresh","skip_team_loading","disable_character_fade","no_avatar_switch_cd","developer_level","region_unlock_token"});
         result.addRow(new Object[]{p.getBoolean("enabled",true)?1:0,p.getBoolean("capture",true)?1:0,p.getFloat("mouse_scale",0.02f),p.getFloat("touchpad_gain",0.25f),RootProxyService.port,RootProxyService.token,Settings.effective(p,"hide_uid",true)?1:0,p.getBoolean("focus_guard",true)?1:0,Settings.effective(p,"portable_craft",true)?1:0,p.getInt("craft_key",Shortcut.DEFAULT_KEY),p.getInt("craft_meta",0)&Shortcut.META_MASK,Settings.effective(p,"portable_daily",true)?1:0,p.getInt("daily_key",Shortcut.DEFAULT_DAILY_KEY),p.getInt("daily_meta",0)&Shortcut.META_MASK,Settings.effective(p,"qr_login",true)?1:0,Settings.effective(p,"portable_expedition",true)?1:0,p.getInt("expedition_key",Shortcut.DEFAULT_EXPEDITION_KEY),p.getInt("expedition_meta",0)&Shortcut.META_MASK,p.getBoolean("graphics_enabled",false)?1:0,p.getBoolean("render_resolution",false)?1:0,p.getInt("render_width",0),p.getInt("render_height",0),p.getInt("target_fps",0),p.getBoolean("effect_enhance",false)?1:0,p.getInt("veg_percent",100),p.getInt("render_path",3),renderCaptureToken,lookRefreshToken,Settings.effective(p,"skip_team_loading",true)?1:0,p.getBoolean("disable_character_fade",true)?1:0,Settings.effective(p,"no_avatar_switch_cd",false)?1:0,Settings.developerLevel(p),DeveloperMode.allowed(Settings.developerLevel(p),"unlock_regions")&&android.os.SystemClock.elapsedRealtime()-regionUnlockToken<60000?regionUnlockToken:0L});

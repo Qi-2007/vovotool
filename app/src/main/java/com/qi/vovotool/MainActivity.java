@@ -41,6 +41,8 @@ public final class MainActivity extends Activity {
     private Button shortcutButton,dailyShortcutButton,expeditionShortcutButton;
     private Button regionUnlockButton;
     private TextView regionUnlockState;
+    private RegionTabs regionTabs;
+    private TextView adapterText;
     private long regionUnlockSubmittedAt;
     private int regionUnlockPreviousRequests;
     private boolean recordingShortcut;
@@ -64,10 +66,19 @@ public final class MainActivity extends Activity {
     private Button button(LinearLayout parent,String title,View.OnClickListener action){Button b=new Button(this);b.setText(title);b.setOnClickListener(action);parent.addView(b,new LinearLayout.LayoutParams(-1,dp(54)));return b;}
     private EditText number(LinearLayout parent,String title,float value){text(parent,title,17);EditText e=new EditText(this);e.setText(Float.toString(value));e.setTextColor(ui.ink);e.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL);parent.addView(e);return e;}
     @Override public void onCreate(Bundle saved){
-        super.onCreate(saved);prefs=Settings.preferences(this);Settings.grantGameAccess(this);
+        super.onCreate(saved);
+        // 国服没装则自动切到国际服；选择持久化，管理页随之加载对应配置。
+        boolean cnInstalled=getPackageManager().getLaunchIntentForPackage(Settings.GAME)!=null;
+        boolean osInstalled=getPackageManager().getLaunchIntentForPackage(Settings.GAME_OS)!=null;
+        String active=Settings.activeGame(this);
+        if(Settings.GAME.equals(active)&&!cnInstalled&&osInstalled){Settings.setActiveGame(this,Settings.GAME_OS);active=Settings.GAME_OS;}
+        if(Settings.GAME_OS.equals(active)&&!osInstalled&&cnInstalled){Settings.setActiveGame(this,Settings.GAME);active=Settings.GAME;}
+        prefs=Settings.preferences(this);Settings.grantGameAccess(this);
         developerMode=new DeveloperMode(Settings.developerLevel(prefs));
         ui=new MaterialUi(this);
         buildShell();
+        LinearLayout regionCard=card(homePage);
+        buildRegionSelector(regionCard,cnInstalled,osInstalled);
         LinearLayout layout=card(homePage);
         text(layout,"模块状态",14);
         state=text(layout,"等待游戏连接",20);
@@ -77,7 +88,8 @@ public final class MainActivity extends Activity {
         text(intro,"让操作更顺手",22);
         text(intro,"画面、操控与便携工具，在管理页集中调整。",15);
         button(intro,"管理功能",v->selectPage(1));
-        text(homePage,"当前适配 · 国服 7.2 / ARM64",13);
+        adapterText=text(homePage,"",13);
+        updateAdapterText();
         layout=card(categories[1]);
         Switch enabled=new Switch(this);enabled.setText("启用 PC 界面与原生键鼠");enabled.setTextColor(Color.WHITE);enabled.setChecked(prefs.getBoolean("enabled",true));enabled.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("enabled",c).apply());layout.addView(enabled);
         layout=card(categories[1]);
@@ -200,8 +212,29 @@ public final class MainActivity extends Activity {
         developerDialog.setOnShowListener(dialog->{input.requestFocus();developerDialog.getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);});
         developerDialog.show();
     }
+    private void buildRegionSelector(LinearLayout parent,boolean cnInstalled,boolean osInstalled){
+        text(parent,"选择游戏区服（国服 / 国际服配置独立保存）",15);
+        int initial=Settings.GAME_OS.equals(Settings.activeGame(this))?1:0;
+        regionTabs=new RegionTabs(this,ui,new String[]{"国服","国际服"},
+            new boolean[]{cnInstalled,osInstalled},initial,index->selectRegion(index==0?Settings.GAME:Settings.GAME_OS));
+        parent.addView(regionTabs,new LinearLayout.LayoutParams(-1,-2));
+    }
+    private void selectRegion(String game){
+        if(game.equals(Settings.activeGame(this)))return;
+        Settings.setActiveGame(this,game);
+        recreate();  // 按新区服重建页面，管理页加载对应配置文件
+    }
+    private void updateAdapterText(){
+        if(adapterText==null)return;
+        boolean os=Settings.GAME_OS.equals(Settings.activeGame(this));
+        adapterText.setText("当前适配 · "+(os?"国际服":"国服")+" 7.2 / ARM64");
+        if(regionTabs!=null)regionTabs.select(os?1:0);
+    }
     private void openGame(){
-        Intent game=getPackageManager().getLaunchIntentForPackage(Settings.GAME);
+        String active=Settings.activeGame(this);
+        Intent game=getPackageManager().getLaunchIntentForPackage(active);
+        if(game==null)game=getPackageManager().getLaunchIntentForPackage(Settings.GAME);
+        if(game==null)game=getPackageManager().getLaunchIntentForPackage(Settings.GAME_OS);
         if(game!=null)startActivity(game);else Toast.makeText(this,"未找到原神",Toast.LENGTH_SHORT).show();
     }
     private LinearLayout column(){LinearLayout v=new LinearLayout(this);v.setOrientation(LinearLayout.VERTICAL);return v;}

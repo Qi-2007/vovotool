@@ -45,7 +45,7 @@ public final class CaptureController {
         background.post(configLoop); main.post(captureLoop);
     }
     public static synchronized void connect(Activity activity) {
-        if (!Settings.GAME.equals(activity.getPackageName())) return;
+        if (!Settings.isGame(activity.getPackageName())) return;
         if (current!=null && current.activity==activity) return;
         if (current!=null) current.stop();
         current=new CaptureController(activity);

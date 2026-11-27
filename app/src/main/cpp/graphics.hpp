@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <vector>
 #include "render_probe.hpp"
+#include "runtime_switch.hpp"
 
 // Settings are frozen before the first graphics call; resources in one process
 // must agree on their dimensions. The provider retains changes for next launch.
@@ -33,7 +34,7 @@ std::atomic<int> renderReadbackWidth{0},renderReadbackHeight{0};
 std::atomic<int> nativeResolutionRequests{0},nativeResolutionStatus{0};
 void(*realSetResolution)(int,int,bool,int)=nullptr;
 bool engineOutputSize(P b,int& w,int& h){
-    P screen=read<P>(b+0x15dbfea8),table=read<P>(screen);
+    P screen=read<P>(b+profile::engineOutputScreen),table=read<P>(screen);
     if(read<P>(table+0xe0)!=b+profile::graphicsScreenWidth||read<P>(table+0xe8)!=b+profile::graphicsScreenHeight)return false;
     w=read<int>(screen+0x6c);h=read<int>(screen+0x70);
     if(w<320||h<240||w>8192||h>8192)return false;
@@ -65,7 +66,9 @@ RenderSize chooseRenderSize(uint32_t w,uint32_t h,bool attachment,const Graphics
     // 2=experimental PostProcessLayer sizing. Only submitted draws prove sizing.
     // Full output resizing is enabled only with the matching native ReadPixels
     // adapter. It resizes the CPU texture before reading the physical extent.
-    if((c.path==1||c.path==3)&&c.resolution&&photoReady&&mainRenderSize(w,h,c)){s.newWidth=c.width;s.newHeight=c.height;return s;}
+    // 国际服没有 photo 钩子，photoReady 永远为 false；场景尺寸只依赖 Vulkan sizing。
+    const bool needPhoto = !runtimeIsOS;
+    if((c.path==1||c.path==3)&&c.resolution&&(!needPhoto||photoReady)&&mainRenderSize(w,h,c)){s.newWidth=c.width;s.newHeight=c.height;return s;}
     if(!attachment||!c.effects)return s;
     const int tw=c.resolution?c.width:c.nativeWidth,th=c.resolution?c.height:c.nativeHeight;
     // Only the same half/quarter-size landscape targets recognized by reshook.
@@ -211,7 +214,7 @@ PFN_vkVoidFunction interceptRenderProc(const char* name,PFN_vkVoidFunction real)
     std::lock_guard<std::mutex> lock(graphicsMutex);
     if(std::strcmp(name,"vkGetDeviceProcAddr")==0){realDeviceProc=(PFN_vkGetDeviceProcAddr)real;return (PFN_vkVoidFunction)deviceProcHook;}
     // Vulkan dispatch pointers are published once for this game's single device.
-#define RENDER_PROC(N,F,S,B) if(std::strcmp(name,N)==0){if(real!=(PFN_vkVoidFunction)F){if(S&&(PFN_vkVoidFunction)S!=real){graphicsError=-7;return real;}S=(decltype(S))real;graphicsHooks.fetch_or(B);}return (PFN_vkVoidFunction)F;}
+#define RENDER_PROC(N,F,S,B) if(std::strcmp(name,N)==0){if(real!=(PFN_vkVoidFunction)F){if(S&&(PFN_vkVoidFunction)S!=real){/* re-resolved: adopt the later real pointer */}S=(decltype(S))real;graphicsHooks.fetch_or(B);}return (PFN_vkVoidFunction)F;}
     RENDER_PROC("vkCreateSwapchainKHR",createSwapHook,realCreateSwap,1)
     RENDER_PROC("vkGetSwapchainImagesKHR",swapImagesHook,realSwapImages,2)
     RENDER_PROC("vkCreateImage",createImageHook,realCreateImage,4)
@@ -235,7 +238,7 @@ PFN_vkVoidFunction deviceProcHook(VkDevice h,const char* n){return interceptRend
 uintptr_t gameVulkanInitializeHook(){
     // The game resolves its Vulkan table here. Replace its writable resolver
     // slot, without detouring Android's short/branch-sharing loader functions.
-    P slot=base.load()+0x15db8460;
+    P slot=base.load()+profile::vulkanResolverSlot;
     auto real=read<PFN_vkGetInstanceProcAddr>(slot);
     if(real&&real!=instanceProcHook){realInstanceProc=real;write<PFN_vkGetInstanceProcAddr>(slot,instanceProcHook);}
     else if(!real)graphicsError=-3;
@@ -337,10 +340,10 @@ void screenResolutionHook(int w,int h,bool fullscreen,int refresh){
 void updateGraphics(P b){
     auto c=graphicsConfiguration();
     if(!graphicsVerified)return;
-    int current=read<int>(b+0x156a74d8);
+    int current=read<int>(b+profile::graphicsFpsSlot);
     // The native setter is only three instructions; a 16-byte inline hook
     // would overwrite the adjacent function. Mirror its validated store.
-    if(c.active&&c.fps&&current!=c.fps){write<int>(b+0x156a74d8,c.fps);current=c.fps;}
+    if(c.active&&c.fps&&current!=c.fps){write<int>(b+profile::graphicsFpsSlot,c.fps);current=c.fps;}
     graphicsFps=current;
     int w=0,h=0;engineOutputSize(b,w,h);
     if(c.active&&c.resolution&&c.path==3&&realSetResolution&&w>0&&h>0){
@@ -352,9 +355,13 @@ void updateGraphics(P b){
     }
 }
 void installGraphics(P address){
-    if(!photoReady){graphicsError=-9;return;}
-    for(const auto& pin:profile::graphicsPins){unsigned char bytes[16]{};
-        if(!readMemory(address+pin.rva,bytes,16)||std::memcmp(bytes,pin.bytes,16)!=0){graphicsError=-1;return;}}
+    // photoReady 只在分辨率路径 1/3 用作渲染尺寸抓取；
+    // 国际服未装 photo 钩子，不应因此阻止帧率/基础画质钩子安装。
+    if(!runtimeIsOS && !photoReady){graphicsError=-9;return;}
+    if(!runtimeIsOS){
+        for(const auto& pin:profile::graphicsPins){unsigned char bytes[16]{};
+            if(!readMemory(address+pin.rva,bytes,16)||std::memcmp(bytes,pin.bytes,16)!=0){graphicsError=-1;return;}}
+    }
     if(hookFunction((void*)(address+profile::graphicsQualityFloat),(void*)qualityFloatHook,(void**)&realQualityFloat)!=0){graphicsError=-2;return;}
     if(hookFunction((void*)(address+profile::graphicsVulkanInitialize),(void*)gameVulkanInitializeHook,(void**)&realVulkanInitialize)!=0){graphicsError=-3;return;}
     if(hookFunction((void*)(address+profile::graphicsSetResolution),(void*)screenResolutionHook,(void**)&realSetResolution)!=0){graphicsError=-10;return;}

@@ -18,20 +18,21 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage;
 public final class XposedEntry implements IXposedHookLoadPackage {
     private static boolean installed;
     @Override public void handleLoadPackage(XC_LoadPackage.LoadPackageParam load) {
-        if(!Settings.GAME.equals(load.packageName) || !Settings.GAME.equals(load.processName))return;
+        if(!Settings.isGame(load.packageName) || !Settings.isGame(load.processName))return;
         XposedHelpers.findAndHookMethod(Application.class,"attach",Context.class,new XC_MethodHook(){
             @Override protected void afterHookedMethod(MethodHookParam param) {
                 if(installed)return;
                 Context context=(Context)param.args[0];
                 try {
-                    PackageInfo info=context.getPackageManager().getPackageInfo(Settings.GAME,0);
+                    PackageInfo info=context.getPackageManager().getPackageInfo(load.packageName,0);
                     if(!Settings.VERSION.equals(info.versionName)) {
-                        XposedBridge.log("vovotool: unsupported game version "+info.versionName);
+                        XposedBridge.log("vovotool: unsupported game version "+info.versionName+" ("+load.packageName+")");
                         Bundle report=new Bundle();report.putIntArray("state",new int[]{-10});
                         context.getContentResolver().call(Settings.URI,"report",null,report);return;
                     }
-                    NativeBridge.load(context);GameConfiguration.load(context);installJavaHooks(context.getClassLoader());QrLoginBridge.install(context.getClassLoader());installed=true;
-                    XposedBridge.log("vovotool: module loaded for "+info.versionName);
+                    NativeBridge.load(context);GameConfiguration.load(context);installJavaHooks(context.getClassLoader());installed=true;
+                    if(Settings.GAME.equals(load.packageName))QrLoginBridge.install(context.getClassLoader());
+                    XposedBridge.log("vovotool: module loaded for "+load.packageName+" "+info.versionName);
                 } catch(Throwable e) { XposedBridge.log(e); }
             }
         });
@@ -61,7 +62,7 @@ public final class XposedEntry implements IXposedHookLoadPackage {
         XposedHelpers.findAndHookMethod(Activity.class,"onResume",new XC_MethodHook(){
             @Override protected void afterHookedMethod(MethodHookParam p){
                 Activity a=(Activity)p.thisObject;
-                if(Settings.GAME.equals(a.getPackageName()) && a.getClass().getName().contains("MainActivity"))CaptureController.connect(a);
+                if(Settings.isGame(a.getPackageName()) && a.getClass().getName().contains("MainActivity"))CaptureController.connect(a);
             }
         });
         XposedHelpers.findAndHookMethod(Activity.class,"onDestroy",new XC_MethodHook(){
