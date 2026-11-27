@@ -175,7 +175,7 @@ public final class CaptureController {
     }
     public static boolean onMotion(MotionEvent event) {
         CaptureController c=current;
-        if(c==null || c.stopped || !c.enabled || !c.capture || c.view==null || !c.view.hasPointerCapture())return false;
+        if(c==null || c.stopped || !c.enabled || !c.capture || c.view==null)return false;
         int source=event.getSource();
         boolean pad=(source&0x100008)==0x100008;
         if(!pad && (source&0x20004)!=0x20004)return false;

@@ -138,10 +138,9 @@ bool probeLayout(P root){
         // 国际服：探测 cursor 字段（PC 鼠标模式下值为 -1），供 Java 层 pointer capture 判定。
         // 国服 cursor 是硬编码 0x340，国际服布局不同，这里运行时扫 manager 找 -1。
         if(runtimeIsOS&&manager&&!o.cursor){
-            for(int off=0;off<=0x400;off+=4){
-                if(read<int>(manager+off,0)==-1){o.cursor=off;break;}
-            }
-            __android_log_print(ANDROID_LOG_INFO,"vovotool","OS cursor probe: offset=%x value=%d",o.cursor,read<int>(manager+o.cursor,-999));
+            // 国际服真 cursor 字段 manager+0x300：视角模式=-1，UI 面板=非-1。
+            // 不能扫第一个 -1：manager+0x2fc 是恒定 -1 的无关字段。
+            o.cursor=0x300;
         }
         inoff::probed=true;
         log("Input chain probed for this build");
@@ -232,8 +231,14 @@ void apply(P b){
         reinterpret_cast<MapsSetter>(b+profile::selectMaps)(reinterpret_cast<void*>(binding),2,nullptr);
     }else{
         // 国际服：keyboard controller 启用是安全的（崩溃定位显示 mouse 那次才 pc=0）。
-        // mouse 的 setController 与 selectMaps 是草稿地址/对象不匹配，会概率性崩溃，跳过。
         if(keyboard)reinterpret_cast<ControllerSetter>(b+profile::setController)(reinterpret_cast<void*>(keyboard),true,nullptr);
+        // selectMaps 切换真正的键鼠控制方案（用经类名校验的 binding）——键盘响应必需。
+        if(binding)reinterpret_cast<MapsSetter>(b+profile::selectMaps)(reinterpret_cast<void*>(binding),2,nullptr);
+        // setController(mouse) 用经 classIs("Mouse") 校验的对象（keyboard+0x148），激活鼠标 controller。
+        if(keyboard){
+            const P mo=read<P>(keyboard+0x148);
+            if(classIs(mo,"Mouse"))reinterpret_cast<ControllerSetter>(b+profile::setController)(reinterpret_cast<void*>(mo),true,nullptr);
+        }
     }
     if(originalDeviceSetter)originalDeviceSetter(reinterpret_cast<void*>(manager),1,true,nullptr);
     if(inoff::active.inputMode)write<int>(input+inoff::active.inputMode,2);
@@ -318,16 +323,22 @@ void tickHook(void* self,void* method){
 }
 void mouseHook(void* self,void* data,void* method){
     originalMouse(self,data,method);
-    if(!enabled||!applied||reinterpret_cast<P>(self)!=mouseSource)return;
-    const P axes=read<P>(reinterpret_cast<P>(data)+0x30);
+    if(!enabled||!applied)return;
+    // 不用探测到的 mouseSource（静态探测不稳定）：用 self 的真实类名校验。
+    if(runtimeIsOS){ if(!classIs(reinterpret_cast<P>(self),"UnityUnifiedMouseSource"))return; }
+    else if(reinterpret_cast<P>(self)!=mouseSource)return;
+    // 轴数组偏移：国际服 data+0x20，国服 data+0x30（实测布局不同）。
+    const int axesOff=runtimeIsOS?0x20:0x30;
+    const int buttonsOff=runtimeIsOS?0x30:0x10;
+    const P axes=read<P>(reinterpret_cast<P>(data)+axesOff);
     if(!classIs(axes,"Single[]")||read<int>(axes+0x18)!=4)return;
     mouseFrames++;
     float values[4]{};if(!readMemory(axes+0x20,values,sizeof(values)))return;
-    if(captureEnabled&&captured&&windowFocused&&cursor==-1){
+    if(captureEnabled&&windowFocused&&cursor==-1){
         std::lock_guard<std::mutex> guard(inputMutex);
         values[0]=relativeX;values[1]=relativeY;values[2]=scrollY;values[3]=scrollX;
         relativeX=relativeY=scrollY=scrollX=0;
-        P buttonsArray=read<P>(reinterpret_cast<P>(data)+0x10);
+        P buttonsArray=read<P>(reinterpret_cast<P>(data)+buttonsOff);
         if(classIs(buttonsArray,"Boolean[]")&&read<int>(buttonsArray+0x18)==7){
             const unsigned current=buttons|pendingButtons;pendingButtons=0;
             for(unsigned n=0;n<7;n++)write<uint8_t>(buttonsArray+0x20+n,(current>>n)&1);
@@ -339,18 +350,22 @@ void mouseHook(void* self,void* data,void* method){
 }
 void keyboardHook(void* self,void* data,void* method){
     originalKeyboard(self,data,method);
-    if(!enabled||!applied||reinterpret_cast<P>(self)!=keyboardSource)return;
-    if(!inoff::active.keyboardMap)return;
-    P keys=read<P>(reinterpret_cast<P>(data)+0x10),map=read<P>(keyboard+inoff::active.keyboardMap);
-    if(!classIs(keys,"Boolean[]")||!classIs(map,"Int32[]"))return;
-    int count=read<int>(keys+0x18),length=read<int>(map+0x18);
-    if(count!=132||length<=271||length>512)return;
+    if(!enabled||!applied)return;
+    if(runtimeIsOS){ if(!classIs(reinterpret_cast<P>(self),"UnityUnifiedKeyboardSource"))return; }
+    else if(reinterpret_cast<P>(self)!=keyboardSource)return;
+    // 国际服按键表 data+0x30，国服 data+0x10；均为 Boolean[] len=132。
+    const int keysOffset=runtimeIsOS?0x30:0x10;
+    P keys=read<P>(reinterpret_cast<P>(data)+keysOffset);
+    if(!classIs(keys,"Boolean[]")||read<int>(keys+0x18)!=132)return;
+    const int count=read<int>(keys+0x18);
+    P map=inoff::active.keyboardMap?read<P>(keyboard+inoff::active.keyboardMap):0;
+    const bool haveMap=classIs(map,"Int32[]")&&read<int>(map+0x18)>271;
     std::lock_guard<std::mutex> guard(keyMutex);
     if(!windowFocused){heldKeys=pendingKeys=0;}
     const unsigned pressed=heldKeys|pendingKeys;
     pendingKeys=0;
     for(unsigned n=0;n<3;n++){
-        int index=read<int>(map+0x20+specialKeyCodes[n]*4,-1);
+        int index=haveMap?read<int>(map+0x20+specialKeyCodes[n]*4,-1):specialKeyCodes[n];
         if(index>=0&&index<count)write<uint8_t>(keys+0x20+index,(pressed>>n)&1);
     }
     keyboardFrames++;
@@ -474,7 +489,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_qi_vovotool_NativeBridge_setCaptureSt
     }
 }
 extern "C" JNIEXPORT void JNICALL Java_com_qi_vovotool_NativeBridge_motion(JNIEnv*,jclass,jfloat x,jfloat y,jfloat vertical,jfloat horizontal,jint mask){
-    if(!captured||!captureEnabled||!windowFocused||!std::isfinite(x)||!std::isfinite(y))return;
+    if(!captureEnabled||!windowFocused||!std::isfinite(x)||!std::isfinite(y))return;
     std::lock_guard<std::mutex> guard(inputMutex);
     relativeX+=x;relativeY+=y;scrollY+=vertical;scrollX+=horizontal;
     pendingButtons|=static_cast<unsigned>(mask)&~buttons;buttons=mask;motionEvents++;
