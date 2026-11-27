@@ -26,7 +26,8 @@ void installRegionUnlock(P b){
 
 bool readRegionUnlockValues(P state,int (&values)[3]){
     const P dictionary=read<P>(state+0x10),entries=read<P>(dictionary+0x10);
-    const int count=read<int>(dictionary+0x38,-1),capacity=read<int>(entries+0x18,-1);
+    // +0x38 is version: it grows on updates/relogin and can exceed capacity.
+    const int count=read<int>(dictionary+0x3c,-1),capacity=read<int>(entries+0x18,-1);
     if(count<0||count>capacity||capacity>5000)return false;
     for(int n=0;n<3;n++)values[n]=-1;
     for(int i=0;i<count;i++){
