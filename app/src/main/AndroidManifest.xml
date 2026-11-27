@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.qi.vovotool" android:versionCode="34" android:versionName="0.1.33">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.qi.vovotool" android:versionCode="35" android:versionName="0.1.34">
     <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="35" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <queries><package android:name="com.miHoYo.Yuanshen" /></queries>
+    <queries><package android:name="com.miHoYo.Yuanshen" /><package android:name="com.miui.powerkeeper" /></queries>
     <application android:forceQueryable="true" android:label="沃沃头" android:theme="@style/AppTheme" android:allowBackup="false" android:supportsRtl="true" android:extractNativeLibs="true" android:icon="@mipmap/ic_launcher">
         <meta-data android:name="xposedmodule" android:value="true" />
         <meta-data android:name="xposeddescription" android:value="原神原生 PC 界面、键鼠与触控板相对输入" />
