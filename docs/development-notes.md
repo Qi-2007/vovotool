@@ -160,6 +160,7 @@ Module configuration unavailable: IllegalArgumentException
 - `touchpad_proxy.cpp`：独立 root 程序，查找指定 Lenovo 触控板，转换单指位移、轻点及物理按钮为临时相对鼠标输入。它不独占原触控板；菜单中不转发。
 - `RootProxyService.java`：前台服务启动/管理 root 辅助程序；通过本地回环 UDP 和随机 128 位令牌接收游戏心跳。无公网服务。
 - `profile.hpp` / `profile.json`：该版本 ARM64 函数偏移与 16 字节指纹。运行时类按名称校验，没有固定 PID 或堆对象地址。
+- `profile_os.hpp` / `os_profile.json`：国际服对应的函数偏移与指纹，结构与国服一致。`profile_os.hpp` 是权威表，`os_profile.json` 由它通过 `tools/gen_os_profile.py` 生成以保持同步；`os_profile_draft.json` 为 gitignore 的定位中间产物。
 
 没有采用早期 Frida 实验中导致冻结的完整 UI setter 路径。代码指纹不匹配时不安装 hook；游戏更新后需要重新分析与适配。游戏内原生灵敏度设置页面仍未开放，使用模块页面调节。
 
