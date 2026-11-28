@@ -56,7 +56,7 @@ bool inputBaselineSaved=false;
 int64_t inputApplyRetryAt=0;
 P manager=0,input=0,binding=0,platform=0,keyboard=0,mouse=0,mouseSource=0,keyboardSource=0;
 P probedKeyboard=0,probedMouse=0;  // 国际服 probe 直接定位到的 Keyboard/Mouse 对象
-struct Baseline { int device=0,mode=0; uint8_t disableKeyboard=1,disableMouse=1,keyboard=0,mouse=0; } baseline;
+struct Baseline { int device=0,mode=0; uint8_t disableKeyboard=1,disableMouse=1,keyboard=0,mouse=0; bool controllerStateKnown=false; } baseline;
 int64_t nowMs(){return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();}
 void log(const char* s){__android_log_write(ANDROID_LOG_INFO,"vovotool",s);}
 P clean(P p){return p&0x00ffffffffffffffULL;}
@@ -223,6 +223,7 @@ void apply(P b){
                       static_cast<uint8_t>(o.platformDisableMouse?read<uint8_t>(platform+o.platformDisableMouse):0),
                       static_cast<uint8_t>(o.keyboardCd?read<uint8_t>(keyboard+o.keyboardCd):0),
                       static_cast<uint8_t>(o.mouseCd?read<uint8_t>(mouse+o.mouseCd):0)};
+            baseline.controllerStateKnown=(o.keyboardCd!=0)&&(o.mouseCd!=0);
             inputBaselineSaved=true;
         }
         // A main page created for mobile retains its controls and cursor policy
@@ -263,12 +264,20 @@ void apply(P b){
 void restore(P b){
     if(!applied)return;
     if(inoff::active.inputMode)write<int>(input+inoff::active.inputMode,baseline.mode);
-    if(!runtimeIsOS){
+    if(!runtimeIsOS&&baseline.controllerStateKnown){
+        // 国服：keyboardCd/mouseCd 偏移已验证，基线是真实 controller 状态，精确还原。
         reinterpret_cast<MapsSetter>(b+profile::selectMaps)(reinterpret_cast<void*>(binding),baseline.mode,nullptr);
         reinterpret_cast<ControllerSetter>(b+profile::setController)(reinterpret_cast<void*>(mouse),baseline.mouse!=0,nullptr);
     }
     if(originalDeviceSetter)originalDeviceSetter(reinterpret_cast<void*>(manager),baseline.device,true,nullptr);
-    reinterpret_cast<ControllerSetter>(b+profile::setController)(reinterpret_cast<void*>(keyboard),baseline.keyboard!=0,nullptr);
+    // 国际服 layout 未定位 keyboardCd/mouseCd（=0），baseline.keyboard/mouse 恒为 0；
+    // 若仍按 (baseline.keyboard!=0) 调用会无条件关闭键盘 controller，破坏游戏原状态。
+    // deviceType/inputMode 已还原为手机值，游戏据此切回触控，controller 不再额外改动。
+    if(!runtimeIsOS||baseline.controllerStateKnown){
+        reinterpret_cast<ControllerSetter>(b+profile::setController)(reinterpret_cast<void*>(keyboard),baseline.keyboard!=0,nullptr);
+    }else{
+        log("OS restore keeps controller state (cd offsets unavailable)");
+    }
     if(inoff::active.platformDisableKeyboard)write<uint8_t>(platform+inoff::active.platformDisableKeyboard,baseline.disableKeyboard);
     if(inoff::active.platformDisableMouse)write<uint8_t>(platform+inoff::active.platformDisableMouse,baseline.disableMouse);
     restoreLookFactors();applied=false;inputBaselineSaved=false;inputApplyRetryAt=0;stage=3;captured=false;log("Runtime input baseline restored");
