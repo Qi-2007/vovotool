@@ -101,7 +101,7 @@ inline void apply_os_profile(){
   { for(int i=0;i<2;++i) { profile::lookPins[i].rva = profile_os::lookPins[i].rva; __builtin_memcpy(profile::lookPins[i].bytes, profile_os::lookPins[i].bytes, 16); } }
   { for(int i=0;i<4;++i) { profile::mapMousePins[i].rva = profile_os::mapMousePins[i].rva; __builtin_memcpy(profile::mapMousePins[i].bytes, profile_os::mapMousePins[i].bytes, 16); } }
   { for(int i=0;i<2;++i) { profile::photoPins[i].rva = profile_os::photoPins[i].rva; __builtin_memcpy(profile::photoPins[i].bytes, profile_os::photoPins[i].bytes, 16); } }
-  { for(int i=0;i<19;++i) { profile::pins[i].rva = profile_os::pins[i].rva; __builtin_memcpy(profile::pins[i].bytes, profile_os::pins[i].bytes, 16); } }
+  { for(int i=0;i<20;++i) { profile::pins[i].rva = profile_os::pins[i].rva; __builtin_memcpy(profile::pins[i].bytes, profile_os::pins[i].bytes, 16); } }
   { for(int i=0;i<1;++i) { profile::regionUnlockPins[i].rva = profile_os::regionUnlockPins[i].rva; __builtin_memcpy(profile::regionUnlockPins[i].bytes, profile_os::regionUnlockPins[i].bytes, 16); } }
   { for(int i=0;i<3;++i) { profile::teamLoadingPins[i].rva = profile_os::teamLoadingPins[i].rva; __builtin_memcpy(profile::teamLoadingPins[i].bytes, profile_os::teamLoadingPins[i].bytes, 16); } }
 }

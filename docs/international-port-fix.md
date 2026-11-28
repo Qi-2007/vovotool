@@ -204,3 +204,20 @@ VOVO_OS_BUILD 下已去掉 photoReady 依赖（场景尺寸只依赖 Vulkan sizi
 - 验证 native 状态不必切 app（切 app 会导致游戏停上报）：机器有 KernelSU root，可从 JNI 导出函数反汇编出全局变量 so 偏移，/proc/<pid>/maps 找 vovotool base.apk 映射基址，用 dd if=/proc/<pid>/mem 直接读。
 - 定位字段/类名走「反汇编游戏 so + 诊断日志 dump 对象字段」组合，比盲猜偏移可靠。
 - 国际服类名是 11 字符 A-P 混淆名，跨版本会变；字段偏移随版本变化，均以当次 dump 为准。
+
+
+### ESC 路由到派蒙菜单（20:05 补充）
+
+国际服原本按 ESC 弹 SDK「确认退出游戏」弹窗。国服 0.1.4 已用原生 Esc 路由解决，但国际服
+`escapeRoutePredicate` 当时未定位（配 0），hook 被跳过。
+
+反汇编国际服 `libyuanshen_os.so` 补齐：
+- `0x115ee5f4`：动作 38（Cancel）分支的 BL，调用 `0x114400f4`
+- `0x114400f4`：输入模式判断函数（读 `input+0x18c` 与 3 比较）。返回 false → `0x115ef2a0` SDK 退出；
+  返回 true → `0x11634778` 游戏原生共享 Back 处理（主世界=派蒙菜单，秘境=对应退出）
+- 指纹 16 字节从 so 按 ELF vaddr→file offset 精确读出补入 `pins[]`，`pinsCount` 19→20
+
+`escapeRouteHook` 逻辑无需改动：仅在 caller 恰为 `base+escapeRouteCall+4` 时把判断结果强制为 true，
+其他调用点照常调用原函数。因此**没有改按键映射**——键盘事件仍照原路径写入 Rewired Escape(27)，
+改的是游戏内部判断的返回值，让游戏按自己的原生逻辑走另一条已存在的分支。
+真机（国际服 7.2.0）按 ESC 弹派蒙菜单，用户确认成功。详见 `docs/native-escape-routing.md`。
