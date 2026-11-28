@@ -58,7 +58,10 @@ public final class XposedEntry implements IXposedHookLoadPackage {
         Class<?> gameActivity=XposedHelpers.findClass("com.miHoYo.GetMobileInfo.MainActivity",loader);
         XposedBridge.hookMethod(inheritedMethod(gameActivity,"dispatchTouchEvent",MotionEvent.class),new XC_MethodHook(){
             @Override protected void beforeHookedMethod(MethodHookParam p){
-                if(CaptureController.onTouch((Activity)p.thisObject,(MotionEvent)p.args[0]))p.setResult(true);
+                MotionEvent ev=(MotionEvent)p.args[0];
+                MotionEvent touch=CaptureController.mouseToTouch(ev);
+                if(touch!=null){p.args[0]=touch;return;}   // 替换成触摸事件，交给游戏正常分发
+                if(CaptureController.onTouch((Activity)p.thisObject,ev))p.setResult(true);
             }
         });
         XposedBridge.hookMethod(inheritedMethod(gameActivity,"onWindowFocusChanged",boolean.class),new XC_MethodHook(){

@@ -12,6 +12,8 @@ import android.view.MotionEvent;
 import android.view.KeyEvent;
 import android.view.InputDevice;
 import android.view.View;
+import android.view.SurfaceView;
+import android.graphics.Rect;
 
 public final class CaptureController {
     private static CaptureController current;
@@ -32,6 +34,10 @@ public final class CaptureController {
     private String lastRenderProbe="{}";
     private volatile boolean focusGuard=true;
     private boolean windowFocused,focusTouchArmed,swallowTouch;
+    private volatile boolean altHeld;            // ALT 临时释放鼠标
+    private volatile boolean imeVisible;         // 软键盘弹出（聊天输入框激活）
+    private volatile boolean chatOpen;           // 聊天框打开（回车触发的显式状态）
+    private boolean chatFocusLeft;              // 聊天期间焦点是否曾离开游戏画面
     private long focusGainedAt;
     private volatile int focusLosses,focusGains,swallowedGestures,swallowedEvents,touchDowns,lastTouchSource,lastTouchAction;
     private long fingerDown;
@@ -130,7 +136,28 @@ public final class CaptureController {
             int[] state=NativeBridge.state();
             boolean focus=view!=null && view.isAttachedToWindow() && view.hasWindowFocus() && !activity.isFinishing();
             updateFocus(focus);
-            boolean desired=enabled && capture && state[0]==2 && state[1]==2 && state[2]==-1 && focus;
+            // 软键盘是否弹出：可见显示区域高度明显小于窗口高度即认为输入法占据屏幕。
+            boolean ime=false;
+            try{
+                Rect r=new Rect();
+                View root=activity.getWindow().getDecorView();
+                root.getWindowVisibleDisplayFrame(r);
+                int screenH=root.getHeight();
+                ime=screenH>0 && (screenH-r.bottom)>screenH/5;
+            }catch(Throwable ignored){}
+            imeVisible=ime;
+            // 两段式焦点检测关聊天框：必须先看焦点离开游戏画面(聊天 UI 出现)，
+            // 再看焦点回到 SurfaceView(聊天框关闭)，才恢复独占。
+            // 避免刚打开时焦点还在 SurfaceView 就误判关闭。
+            if(chatOpen){
+                if(view!=null && !(view instanceof SurfaceView))chatFocusLeft=true;
+                else if(chatFocusLeft && view instanceof SurfaceView){
+                    chatOpen=false;chatFocusLeft=false;
+                    Log.i("vovotool","Chat closed by focus return");
+                }
+            }
+            boolean desired=enabled && capture && state[0]==2 && state[1]==2 && state[2]==-1 && focus
+                    && !altHeld && !imeVisible && !chatOpen;
             if(view!=null) {
                 if(desired && !view.hasPointerCapture())view.requestPointerCapture();
                 else if(!desired && view.hasPointerCapture())view.releasePointerCapture();
@@ -154,10 +181,49 @@ public final class CaptureController {
     public static void onWindowFocus(Activity activity,boolean focused){
         CaptureController c=current;if(c!=null&&c.activity==activity&&!c.stopped)c.updateFocus(focused);
     }
+    // 地图页(cursor=55 的 UI 页面)把鼠标绝对事件改写成触摸事件，
+    // 让游戏的拖动手势识别生效（游戏只认 SOURCE_TOUCHSCREEN 的拖动）。
+    // 返回 null 表示无需转换。用反射设置 mSource，兼容各 Android 版本。
+    public static MotionEvent mouseToTouch(MotionEvent e){
+        if(e==null||e.isFromSource(InputDevice.SOURCE_TOUCHSCREEN))return null;
+        int src=e.getSource();
+        if((src&0x2002)!=0x2002)return null;   // 只处理绝对鼠标 0x2002
+        int[] st=NativeBridge.state();
+        if(st[2]==-1)return null;              // 大世界鼠标独占时不转（转视角走另一条路）
+        int action=e.getActionMasked();
+        if(action!=MotionEvent.ACTION_DOWN && action!=MotionEvent.ACTION_MOVE &&
+           action!=MotionEvent.ACTION_UP && action!=MotionEvent.ACTION_CANCEL)return null;
+        try{
+            MotionEvent t=MotionEvent.obtain(e.getDownTime(),e.getEventTime(),action,
+                    e.getX(),e.getY(),e.getMetaState());
+            try{
+                java.lang.reflect.Field f=MotionEvent.class.getDeclaredField("mSource");
+                f.setAccessible(true);f.setInt(t,InputDevice.SOURCE_TOUCHSCREEN);
+            }catch(Throwable ignored){
+                try{t.setSource(InputDevice.SOURCE_TOUCHSCREEN);}catch(Throwable ignored2){}
+            }
+            return t;
+        }catch(Throwable ex){Log.w("vovotool","mouseToTouch failed: "+ex.getClass().getSimpleName());return null;}
+    }
+
     public static boolean onTouch(Activity activity,MotionEvent event){
         CaptureController c=current;
-        if(c==null||c.activity!=activity||c.stopped||!event.isFromSource(InputDevice.SOURCE_TOUCHSCREEN))return false;
+        if(c==null||c.activity!=activity||c.stopped)return false;
         int action=event.getActionMasked();
+        // 聊天框打开时任意点击(鼠标/触摸)界面外 → 延迟检查软键盘未弹、焦点不在输入框 → 恢复独占。
+        // 必须放在 SOURCE_TOUCHSCREEN 过滤之前：鼠标点击(source=0x2002)走这里，不是触摸。
+        if(c.chatOpen && action==MotionEvent.ACTION_UP){
+            c.main.postDelayed(()->{
+                if(c.stopped||!c.chatOpen)return;
+                View f=activity.getWindow().getDecorView().findFocus();
+                boolean editing=f!=null && f.onCheckIsTextEditor();
+                if(!c.imeVisible && !editing){
+                    c.chatOpen=false;c.chatFocusLeft=false;
+                    Log.i("vovotool","Chat closed by outside click");
+                }
+            },500);
+        }
+        if(!event.isFromSource(InputDevice.SOURCE_TOUCHSCREEN))return false;
         c.lastTouchSource=event.getSource();c.lastTouchAction=action;
         if(action==MotionEvent.ACTION_DOWN){
             c.touchDowns++;
@@ -211,6 +277,27 @@ public final class CaptureController {
         int action=event.getAction();
         if(action!=KeyEvent.ACTION_DOWN && action!=KeyEvent.ACTION_UP)return false;
         int code=event.getKeyCode();
+        // ALT：按住期间临时释放鼠标独占，松开恢复（游戏照常处理 ALT，不消费事件）。
+        if(code==KeyEvent.KEYCODE_ALT_LEFT || code==KeyEvent.KEYCODE_ALT_RIGHT){
+            c.altHeld=(action==KeyEvent.ACTION_DOWN);
+            Log.i("vovotool","ALT held="+c.altHeld);
+            return false;
+        }
+        // 回车：大世界按下即视为打开聊天框，释放光标（游戏照常处理，不消费）。
+        if(action==KeyEvent.ACTION_DOWN &&
+                (code==KeyEvent.KEYCODE_ENTER || code==KeyEvent.KEYCODE_NUMPAD_ENTER) && !c.chatOpen){
+            int[] st=NativeBridge.state();
+            if(st[0]==2 && st[1]==2 && st[2]==-1){
+                c.chatOpen=true;
+                c.chatFocusLeft=false;
+                Log.i("vovotool","Chat opened by Enter");
+            }
+        }
+        // ESC：关闭聊天框，恢复独占。
+        if(action==KeyEvent.ACTION_DOWN && code==KeyEvent.KEYCODE_ESCAPE && c.chatOpen){
+            c.chatOpen=false;c.chatFocusLeft=false;
+            Log.i("vovotool","Chat closed by Esc");
+        }
         // Some keyboard layouts label the physical Esc key as Android Back.
         if(code==KeyEvent.KEYCODE_BACK && event.isFromSource(InputDevice.SOURCE_KEYBOARD) && event.getScanCode()==1)code=KeyEvent.KEYCODE_ESCAPE;
         if(c.heldCraftKey!=0 && code==c.heldCraftKey){

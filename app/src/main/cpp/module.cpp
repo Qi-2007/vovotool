@@ -94,6 +94,19 @@ int uiPageDepth(){
     }
     return -1;
 }
+// 是否真正在大世界：国际服栈深=1 且栈元素类名匹配大世界 HUD。
+// 加载/登录页栈深也为 1，但栈元素是别的类名，必须排除，否则会被误判为大世界而独占鼠标。
+bool inWorld(){
+    if(!manager)return false;
+    const P stack=read<P>(manager+0x2a8,0);   // 国际服偏移
+    if(stack<0x10000||!classIs(stack,"Stack`1"))return false;
+    if(read<int>(stack+0x24,-1)!=1)return false;
+    // stack+0x18 指向元素数组，+0x20 是第一个元素
+    const P arr=read<P>(stack+0x18,0);
+    if(arr<0x10000)return false;
+    const P elem=read<P>(arr+0x20,0);
+    return classIs(elem,"BFIFKIIDFKN");
+}
 // 在 holder 对象里找一个偏移，使 holder+offset 指向 name 类的实例；找不到返回 0。
 int locateSlot(P holder,int low,int high,const char* name){
     if(holder<0x10000)return 0;
@@ -337,9 +350,14 @@ void tickHook(void* self,void* method){
             {
                 const int rawCursor=read<int>(manager+inoff::active.cursor,1000);
                 const int depth=uiPageDepth();
-                // 世界场景(栈深1)视为视角模式(-1)，任意 UI 页面(栈深>1)视为需要光标(非-1)。
-                // 栈不可读(depth<0)时退回游戏原值，避免误判。
-                cursor=(depth==1)?-1:(depth>1?55:rawCursor);
+                // 世界场景(栈深1)且栈顶是大世界 HUD 才视为视角模式(-1)；
+                // 加载/登录页栈深也为1但栈顶是别的类名，必须给非-1 以免鼠标被独占。
+                // 栈不可读(depth<0)时退回游戏原值。
+                if(runtimeIsOS){
+                    cursor=(inWorld())?-1:(depth>1?55:55);
+                }else{
+                    cursor=(depth==1)?-1:(depth>1?55:rawCursor);
+                }
                 inputMode=read<int>(input+inoff::active.inputMode,-1);
             }
             updateUidVisibility(b);
@@ -440,7 +458,7 @@ void install(P address){
 #endif
     base=address;stage=1;
     if(runtimeIsOS){
-        // 国际服：只装核心 + 已验证的画质钩子，PC 键鼠等其他功能暂不启用。
+        // 国际服：只装核心 + 已验证的画质钩子。地图鼠标 hook 用国服偏移会崩溃，暂不启用。
         installGraphics(address);
         log("OS build: core hooks + verified graphics hooks installed");
     }else{
