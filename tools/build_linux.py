@@ -69,7 +69,10 @@ for p, what in ((TOOLS, "build-tools 35"), (ANDROID, "platform-35 android.jar"),
     if not Path(p).exists():
         sys.exit(f"缺少 {what}: {p}")
 
-run([sys.executable, ROOT / "tools/generate_profile.py"])
+# profile.hpp is checked in and verified; do NOT regenerate it during build.
+# generate_profile.py is a manual retargeting tool that reads a local research
+# library when present and would overwrite profile.hpp with a stale address
+# table (missing newer fields such as graphicsFpsSlot / readyFlag / pinsCount).
 
 native = BUILD / "lib/arm64-v8a"
 native.mkdir(parents=True, exist_ok=True)

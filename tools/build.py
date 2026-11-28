@@ -16,7 +16,11 @@ def clean_output_directory(path):
  if path.resolve().parent!=BUILD.resolve():raise RuntimeError('Refusing to clean outside the build directory')
  if path.exists():shutil.rmtree(path)
  path.mkdir()
-run([sys.executable,ROOT/'tools/generate_profile.py'])
+# profile.hpp is checked in and verified; do NOT regenerate it during build.
+# generate_profile.py reads a local research library when present and would
+# overwrite profile.hpp with a stale address table (missing newer fields such
+# as graphicsFpsSlot / readyFlag / pinsCount). It is a manual retargeting tool:
+# run it explicitly only when intentionally adapting to a new game version.
 native=BUILD/'lib/arm64-v8a';native.mkdir(parents=True,exist_ok=True)
 common=[LLVM/'clang++.exe','--target=aarch64-linux-android26','-std=c++17','-O2','-Wall','-Wextra','-fvisibility=hidden','-static-libstdc++','-Wl,-z,max-page-size=16384']
 run(common+['-fPIC','-shared',ROOT/'app/src/main/cpp/module.cpp','-llog','-ldl','-o',native/'libgipc.so'])
