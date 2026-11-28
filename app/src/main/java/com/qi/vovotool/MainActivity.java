@@ -402,7 +402,7 @@ public final class MainActivity extends Activity {
                 default:expeditionState.setText("探索派遣已就绪 · "+expeditionShortcut());
             }
         }else expeditionState.setText("探索派遣等待游戏连接");
-        graphicsState.setText(GraphicsSettings.status(ConfigProvider.lastGraphicsState,ConfigProvider.lastRenderState,fresh));
+        graphicsState.setText(GraphicsSettings.status(ConfigProvider.lastGraphicsState,ConfigProvider.lastRenderState,ConfigProvider.lastSystemFpsState,prefs.getBoolean("system_fps_unlock",false),fresh));
         rootState.setText(RootProxyService.status);handler.postDelayed(this,1000);
     }};
     private void refreshRegionUnlock(boolean fresh){
