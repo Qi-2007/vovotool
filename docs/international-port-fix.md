@@ -183,3 +183,24 @@ VOVO_OS_BUILD 下已去掉 photoReady 依赖（场景尺寸只依赖 Vulkan sizi
 
 按住 ALT（PC 原神会临时释放光标）与回车打开聊天输入框：实测 UI 栈深、cursor、focus 三字段全程不变，
 游戏视角会停但不显示光标。这两种场景走游戏内部另一套输入状态机制，需后续差异扫描定位字段。
+
+
+## 2026-11-28 补充（光标、加载页、地图、虚化）
+
+上节「新遗留」已在当天全部解决，真机（主力机 192.168.9.20，国际服 7.2.0）逐项验证通过：
+
+- **ALT 临时释放光标**：Java 层 onKey 拦截 ALT down/up，主动释放/恢复 pointer capture，不消费事件。
+- **回车聊天框**：回车释放光标、ESC 或鼠标/触摸点击界面外恢复。用显式状态机，不依赖游戏混乱的 View 焦点。
+- **加载/登录页不误独占**：新增 inWorld()，除栈深外还校验栈元素类名（大世界 HUD），只有真正在大世界时才让 cursor=-1。加载页保持光标可用，进世界立即独占。
+- **地图拖动**：国际服不能复用国服 native map_mouse hook（input+0x40 等偏移不同，实测 SIGSEGV 崩溃，已回退）。改为 Java 层把 UI 页面的鼠标绝对事件（source=0x2002）改写成 SOURCE_TOUCHSCREEN 触摸事件，游戏即可识别拖动。
+- **反角色虚化**（本次补验时发现的遗漏）：原 install 分支只装 graphics，未调 installAvatarFade，国际服该功能一直是摆设（读内存 avatarFadeStatus=0 确认）。补齐后发现三处需适配：
+  1. installAvatarFade 的 pin 循环遍历整个国服数组（7 个），国际服只覆盖前 5 个，第 6 个国服残留 pin 校验失败。改成按 avatarFadePinsCount 遍历（该 bug 影响所有 installXXX，其余暂未启用故未暴露）。
+  2. 国际服虚化组件类名与国服相同：LOFPEGCAEFG（owner 为 PECHLEKMHDF），hook 收到的 self 是组件而非 owner。
+  3. 反汇编国际服重算函数 0xcf0e058：min(+0x16c, +0x174[, +0x184]) 写入 +0x170，近距离虚化由 +0x174 驱动（国服是 +0x184）。hook 里临时把 +0x174 置 1，原函数生成不透明材质后恢复。
+  国际服 updateAvatarFade 直接 return（国服绑定链偏移不适用），改为在 hook 内按类名+因子直接处理。真机怼近角色验证：保持不透明，功能生效。
+- **特效增强**：确认生效，日志有 480x216 -> 2400x1080、1920x864 -> 2400x1080 等 attachment 改写。
+
+### 诊断方法备忘
+- 验证 native 状态不必切 app（切 app 会导致游戏停上报）：机器有 KernelSU root，可从 JNI 导出函数反汇编出全局变量 so 偏移，/proc/<pid>/maps 找 vovotool base.apk 映射基址，用 dd if=/proc/<pid>/mem 直接读。
+- 定位字段/类名走「反汇编游戏 so + 诊断日志 dump 对象字段」组合，比盲猜偏移可靠。
+- 国际服类名是 11 字符 A-P 混淆名，跨版本会变；字段偏移随版本变化，均以当次 dump 为准。

@@ -458,9 +458,11 @@ void install(P address){
 #endif
     base=address;stage=1;
     if(runtimeIsOS){
-        // 国际服：只装核心 + 已验证的画质钩子。地图鼠标 hook 用国服偏移会崩溃，暂不启用。
+        // 国际服：核心 + 画质 + 反角色虚化（国际服在 avatar_fade.hpp 内按类名+因子直接处理）。
+        // 地图鼠标 hook 用国服偏移会崩溃，仍不启用。
         installGraphics(address);
-        log("OS build: core hooks + verified graphics hooks installed");
+        installAvatarFade(address);
+        log("OS build: core + graphics + avatarFade installed");
     }else{
         installLookFactors(address);installTouchLook(address);installMapMouse(address);installTeamLoading(address);installAvatarFade(address);installAvatarSwitch(address);installPhoto(address);installGraphics(address);installRegionUnlock(address);
     }

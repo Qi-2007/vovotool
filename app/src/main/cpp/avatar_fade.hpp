@@ -14,21 +14,41 @@ bool validAvatarFadeTarget(const AvatarFadeTarget& target){
 void avatarFadeRecalculateHook(void* self,void* method){
     avatarFadeCalls++;
     bool override=false;float saved=0;
-    if(avatarFadeStatus==1)for(const auto& target:avatarFadeTargets){
-        if(target.object!=(P)self||!validAvatarFadeTarget(target))continue;
-        saved=read<float>((P)self+0x184,-1);
-        if(avatarFadeValue(saved)){
-            override=enabled&&avatarFadeEnabled&&saved!=1;
-            avatarFadeRequested=static_cast<int>(saved*1000);avatarFadeOutput=override?1000:static_cast<int>(saved*1000);
-            if(override){write<float>((P)self+0x184,1);avatarFadeOverrides++;}
+    const int factorOffset=runtimeIsOS?0x174:0x184;
+    if(avatarFadeStatus==1){
+        if(runtimeIsOS){
+            // 国际服：hook 收到的 self 是虚化组件 LOFPEGCAEFG（与国服同名，owner 为 PECHLEKMHDF）。
+            // 重算函数计算 min(+0x16c, +0x174[, +0x184]) 写入 +0x170；近距离虚化由 +0x174 驱动。
+            // 仅对该类、+0x174 在(0,1)时临时置 1，原函数生成不透明材质后立即恢复。
+            const P sp=(P)self;
+            if(classIs(sp,"LOFPEGCAEFG")){
+                saved=read<float>(sp+factorOffset,-1);
+                if(avatarFadeValue(saved)&&saved!=1){
+                    override=enabled&&avatarFadeEnabled;
+                    avatarFadeRequested=static_cast<int>(saved*1000);
+                    avatarFadeOutput=override?1000:static_cast<int>(saved*1000);
+                    if(override){write<float>(sp+factorOffset,1);avatarFadeOverrides++;}
+                }
+            }
+        }else{
+            for(const auto& target:avatarFadeTargets){
+                if(target.object!=(P)self||!validAvatarFadeTarget(target))continue;
+                saved=read<float>((P)self+0x184,-1);
+                if(avatarFadeValue(saved)){
+                    override=enabled&&avatarFadeEnabled&&saved!=1;
+                    avatarFadeRequested=static_cast<int>(saved*1000);avatarFadeOutput=override?1000:static_cast<int>(saved*1000);
+                    if(override){write<float>((P)self+0x184,1);avatarFadeOverrides++;}
+                }
+                break;
+            }
         }
-        break;
     }
     originalAvatarFadeRecalculate(self,method);
-    if(override)write<float>((P)self+0x184,saved);
+    if(override)write<float>((P)self+factorOffset,saved);
 }
 void updateAvatarFade(P address){
     if(avatarFadeStatus!=1)return;
+    if(runtimeIsOS)return;  // 国际服在 hook 内直接按类名+因子处理，不走国服绑定链偏移
     const P root=read<P>(address+profile::singletonRoot),mgr=read<P>(root+0x9070);
     const P world=classIs(mgr,"LFEMMJADHPE")?read<P>(mgr+0x50):0;
     const P camera=classIs(world,"BDBIBJBCPOJ")?read<P>(world+0x508):0;
@@ -50,7 +70,7 @@ void updateAvatarFade(P address){
     avatarFadeCount=count;avatarFadeWasActive=active;
 }
 void installAvatarFade(P address){
-    for(const auto& pin:profile::avatarFadePins){unsigned char bytes[16]{};
+    for(int pinIdx=0;pinIdx<profile::avatarFadePinsCount;pinIdx++){const auto& pin=profile::avatarFadePins[pinIdx];unsigned char bytes[16]{};
         if(!readMemory(address+pin.rva,bytes,16)||std::memcmp(bytes,pin.bytes,16)){avatarFadeStatus=-1;return;}}
     if(hookFunction((void*)(address+profile::avatarFadeRecalculate),(void*)avatarFadeRecalculateHook,(void**)&originalAvatarFadeRecalculate)){
         avatarFadeStatus=-2;return;
