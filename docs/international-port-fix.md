@@ -124,3 +124,60 @@ VOVO_OS_BUILD 下已去掉 photoReady 依赖（场景尺寸只依赖 Vulkan sizi
 
 - `tools/anchor_vote.c`（临时工具）：memmem 同节区锚点投票，毫秒级，替代 Python 全段扫描（避免 OOM 死机）
 - `memread.c`、`memscan.c`、`find_screen.c`（临时工具）：process_vm_readv 运行时内存读取/搜索
+
+## 2026-11-28 补充：PC 键鼠鼠标独占判定（UI 页面栈深）
+
+### 问题
+
+国际服 PC 键鼠打通后，鼠标 capture（独占/释放）判定依赖游戏 cursor 字段（`manager+0x300`，视角模式=-1）。
+实测该字段不可靠：
+
+- 抽卡 / 设置页面：cursor 始终 -1，模块误判为世界场景，capture 保持，光标出不来、无法点按钮
+- 角色面板：cursor 变 55（释放），但关闭后面板后 cursor 残留 55 不归位，capture 不重建，光标卡住、视角跟着光标动
+
+### 定位过程
+
+1. 测试 APK（`maptest`）抓 Android MotionEvent：未 capture 时鼠标是 `0x2002` 绝对坐标，
+   capture 后是 `0x20004` 相对位移（走 `onCapturedPointerEvent`）。确认 capture 是 PC 键鼠的前提。
+2. Zygisk 纯 native 路线验证走不通：evdev 能读、PC 模式能开，但游戏只在收到 Java 层 capture 后的
+   相对事件才调 mouseUpdate，纯 native 拿不到 → 回到 LSPosed 路线。
+3. 备用机内存 dump：国服 UI 栈在 `manager+0x200` 是 `Stack`1`，国际服该位置变成 `List`1，
+   导致 `topUiContext()` 失效。扫描找到国际服 UI 栈在 **`manager+0x2A8`**（同为 `Stack`1）。
+
+### 关键发现：UI 栈深就是可靠信号
+
+对 `manager+0x2A8` 的 Stack 取 size（栈顶元素在 `items+0x20+(size-1)*8`）：
+
+| 状态 | 栈深 | 栈顶页面 |
+|---|---|---|
+| 世界场景 | 1 | `BFIFKIIDFKN`（世界主页） |
+| 抽卡 | 2 | `GFLCJHBGMCN` |
+| 设置 | 3 | `IEANHLFIEEO` |
+| 角色面板 | 2 | `LDALOPOAFFN` |
+| 关闭角色面板后 | 回到 1 | `BFIFKIIDFKN` |
+
+混淆类名都是 11 字符、仅用 A-P 字母（base16 风格编码），跨版本会变，**不适合做判定**；
+栈深是游戏逻辑结构，跨版本稳定。
+
+### 修复
+
+`tickHook` 里用 `uiPageDepth()`（两服偏移 0x2A8 / 0x200 都试，谁命中用谁）取栈深，
+把上报的 cursor 改成逻辑值：
+
+- 栈深==1 → -1（保持独占、转视角）
+- 栈深>1 → 55（释放光标）
+- 栈不可读 → 退回游戏原值
+
+一处改动同时覆盖：mouseHook 相对位移注入、UDP 代理开关、Java 层 captureLoop/onMotion 判定。
+
+### 真机验证（备用机，国际服 7.2.0）
+
+- 世界场景：鼠标转视角正常
+- 抽卡 / 设置页面：光标正常出来，可点按钮（修复前完全不行）
+- 角色面板：打开释放光标，关闭后自动重新独占、光标消失、视角恢复（老 bug 修复）
+- 无异常日志
+
+### 新遗留
+
+按住 ALT（PC 原神会临时释放光标）与回车打开聊天输入框：实测 UI 栈深、cursor、focus 三字段全程不变，
+游戏视角会停但不显示光标。这两种场景走游戏内部另一套输入状态机制，需后续差异扫描定位字段。

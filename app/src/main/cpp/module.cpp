@@ -79,6 +79,21 @@ bool classIs(P object,const char* name){
     }
     return false;
 }
+// UI 页面栈深：世界场景=1，打开任意 UI 页面>1。
+// 栈偏移两服不同：国际服 manager+0x2A8，国服 manager+0x200（均为 Stack`1）。
+// 不依赖 runtimeIsOS（此时尚未声明），两个偏移都试，谁命中用谁。
+// 返回 -1 表示栈不可读（此时不要据此改写 cursor，保留游戏原值）。
+int uiPageDepth(){
+    if(!manager)return -1;
+    const int offsets[2]={0x2a8,0x200};
+    for(int i=0;i<2;i++){
+        const P stack=read<P>(manager+offsets[i],0);
+        if(stack<0x10000||!classIs(stack,"Stack`1"))continue;
+        const int size=read<int>(stack+0x24,-1);
+        if(size>=0&&size<=32)return size;
+    }
+    return -1;
+}
 // 在 holder 对象里找一个偏移，使 holder+offset 指向 name 类的实例；找不到返回 0。
 int locateSlot(P holder,int low,int high,const char* name){
     if(holder<0x10000)return 0;
@@ -310,7 +325,14 @@ void tickHook(void* self,void* method){
             else restore(b);
             updateLookFactors();
             updateAvatarFade(b);
-            cursor=read<int>(manager+inoff::active.cursor,1000);inputMode=read<int>(input+inoff::active.inputMode,-1);
+            {
+                const int rawCursor=read<int>(manager+inoff::active.cursor,1000);
+                const int depth=uiPageDepth();
+                // 世界场景(栈深1)视为视角模式(-1)，任意 UI 页面(栈深>1)视为需要光标(非-1)。
+                // 栈不可读(depth<0)时退回游戏原值，避免误判。
+                cursor=(depth==1)?-1:(depth>1?55:rawCursor);
+                inputMode=read<int>(input+inoff::active.inputMode,-1);
+            }
             updateUidVisibility(b);
             updateCrafting(b);
             updateExpedition(b);
