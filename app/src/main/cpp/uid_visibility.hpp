@@ -67,6 +67,10 @@ P resolveUidGroup(P object,P b){
     return componentObject(reinterpret_cast<void*>(groupTransform),nullptr);
 }
 bool discoverUid(P object,P value){
+    // 国际服：UID 发现依赖一组尚未重新定位的对象方法地址（objectName/
+    // componentTransform/transformParent 等草稿值），调用会空指针崩溃。
+    // UID 隐藏非核心功能，国际服直接跳过发现，原样透传文本。
+    if(runtimeIsOS)return false;
     if(!classIs(object,"Text")||!read<P>(object+0x10))return false;
     std::u16string source;
     if(!readManagedText(value,source)||!looksLikeUid(source))return false;

@@ -1,0 +1,331 @@
+{
+  "version": "7.2.0_GenshinImpact_International",
+  "arch": "arm64-v8a",
+  "_source": "app/src/main/cpp/profile_os.hpp (international version)",
+  "functions": [
+    {
+      "name": "tick",
+      "rva": 292830192,
+      "bytes": "fe67bca9f85f01a9f65702a9f44f03a9"
+    },
+    {
+      "name": "setDevice",
+      "rva": 292803668,
+      "bytes": "ff8301d1fe2300f9f44f05a9c80102d0"
+    },
+    {
+      "name": "setController",
+      "rva": 226685440,
+      "bytes": "080040f903095da960001fd6fe0f1ef8"
+    },
+    {
+      "name": "selectMaps",
+      "rva": 290936748,
+      "bytes": "fe0f1ef8f44f01a9881102d0f403012a"
+    },
+    {
+      "name": "mouseUpdate",
+      "rva": 226844508,
+      "bytes": "fe57bea9f44f01a9d4fc03f0000840f9"
+    },
+    {
+      "name": "keyboardUpdate",
+      "rva": 233099368,
+      "bytes": "fe4fbfa9084440391f05007101010054"
+    },
+    {
+      "name": "escapeRouteCall",
+      "rva": 291431924,
+      "bytes": "c046f99740650036e00313aa5e180194"
+    },
+    {
+      "name": "escapeHandler",
+      "rva": 291719032,
+      "bytes": "fe5fbda9f65701a9f44f02a9142502b0"
+    },
+    {
+      "name": "uidTextSetter",
+      "rva": 284372036,
+      "bytes": "fe0f1ef8f44f01a9a10300b4291040b9"
+    },
+    {
+      "name": "textPopulateMesh",
+      "rva": 284374520,
+      "bytes": "ff4306d1e923126dfd9b00f9fe6f14a9"
+    },
+    {
+      "name": "objectName",
+      "rva": 72587852,
+      "bytes": "ff8302d1fe3b00f9f65708a9f44f09a9"
+    },
+    {
+      "name": "stringFromUtf16",
+      "rva": 151473272,
+      "bytes": "fe5fbda9f65701a9f44f02a9d45206d0"
+    },
+    {
+      "name": "switchInputMode",
+      "rva": 289640076,
+      "bytes": "ffc302d1fe3b00f9f85f08a9f65709a9"
+    },
+    {
+      "name": "componentTransform",
+      "rva": 135169900,
+      "bytes": "fe0f1ef8f44f01a9201000b4080840f9"
+    },
+    {
+      "name": "componentGameObject",
+      "rva": 135170444,
+      "bytes": "9274261791742617c00000b4080840f9"
+    },
+    {
+      "name": "transformParent",
+      "rva": 152831676,
+      "bytes": "f392e316c956e316ff4302d1fe4f08a9"
+    },
+    {
+      "name": "objectSetActive",
+      "rva": 159023492,
+      "bytes": "6a7dcb16727dcb165e7dcb16707dcb16"
+    },
+    {
+      "name": "objectActiveSelf",
+      "rva": 159023496,
+      "bytes": "727dcb165e7dcb16707dcb165c7dcb16"
+    },
+    {
+      "name": "openPageByName",
+      "rva": 75157312,
+      "bytes": "ff4305d1fd7b0fa9fc6f10a9fa6711a9"
+    }
+  ],
+  "graphics": [
+    {
+      "name": "graphicsFrameRate",
+      "rva": 78120096,
+      "bytes": "885f08f000d902b9c0035fd6fe0f1df8"
+    },
+    {
+      "name": "graphicsQualityFloat",
+      "rva": 213275744,
+      "bytes": "e80f1ffcfe0700f90840201ee86004f0"
+    },
+    {
+      "name": "graphicsVulkanInitialize",
+      "rva": 89972620,
+      "bytes": "fd7bbaa9fc6f01a9fa6702a9f85f03a9"
+    },
+    {
+      "name": "graphicsScreenWidth",
+      "rva": 71536584,
+      "bytes": "006c40b9c0035fd6016c00b9c0035fd6"
+    },
+    {
+      "name": "graphicsScreenHeight",
+      "rva": 72190228,
+      "bytes": "007040b9c0035fd600004239c0035fd6"
+    },
+    {
+      "name": "graphicsMainCamera",
+      "rva": 176567796,
+      "bytes": "c08588160186881671868816e8a705f0"
+    },
+    {
+      "name": "graphicsRebuildScene",
+      "rva": 157983016,
+      "bytes": "ff4303d1e923086dfe4b00f9f85f0aa9"
+    },
+    {
+      "name": "graphicsPostProcessUpdate",
+      "rva": 157987252,
+      "bytes": "ff8300d1fe4f01a9083041f9c80100b4"
+    },
+    {
+      "name": "graphicsPrepareScene",
+      "rva": 157993496,
+      "bytes": "fe67bca9f85f01a9f65702a9f44f03a9"
+    },
+    {
+      "name": "graphicsSetResolution",
+      "rva": 78182008,
+      "bytes": "e9970890e803012ae103002a205546f9"
+    }
+  ],
+  "photo": [
+    {
+      "name": "photoRead",
+      "rva": 71001956,
+      "bytes": "ff4301d1fe5f02a9f65703a9f44f04a9"
+    },
+    {
+      "name": "photoResize",
+      "rva": 71355188,
+      "bytes": "ffc300d1fe5701a9f44f02a9f50300aa"
+    }
+  ],
+  "look": [
+    {
+      "name": "lookRefresh",
+      "rva": 289650056,
+      "bytes": "fe0f00f9f44f02a9081a02f0f30300aa"
+    },
+    {
+      "name": "lookAxisSetting",
+      "rva": 289617604,
+      "bytes": "e80f1dfcfe5701a9f44f02a9481a02f0"
+    }
+  ],
+  "touch": [],
+  "mapMouse": [
+    {
+      "name": "mapUpdateTouches",
+      "rva": 98334808,
+      "bytes": "ffc304d1ec5300fdeb2b0b6de9230c6d"
+    },
+    {
+      "name": "mapMouseHeld",
+      "rva": 78195676,
+      "bytes": "1f18007168010054689608b0083140f9"
+    },
+    {
+      "name": "mapMouseDown",
+      "rva": 78195740,
+      "bytes": "1f18007108010054689608b0083140f9"
+    },
+    {
+      "name": "mapMouseUp",
+      "rva": 78195792,
+      "bytes": "1f18007108010054689608b0083140f9"
+    }
+  ],
+  "teamLoading": [
+    {
+      "name": "teamLoadingMoveNext",
+      "rva": 225305452,
+      "bytes": "e80f1dfcfe5701a9f44f02a9b41f04d0"
+    },
+    {
+      "name": "teamLoadingLayout",
+      "rva": 225305656,
+      "bytes": "880247bd805e46bd0021201ea5020054"
+    },
+    {
+      "name": "teamLoadingReady",
+      "rva": 255423636,
+      "bytes": "28f841b9a800003528d041b91f0d0071"
+    }
+  ],
+  "avatarFade": [
+    {
+      "name": "avatarFadeBinding",
+      "rva": 221664624,
+      "bytes": "74b643f9d40400b475064091a8c25639"
+    },
+    {
+      "name": "avatarFadeCamera",
+      "rva": 70997164,
+      "bytes": "ff0301d1fe0b00f9f65702a9f44f03a9"
+    },
+    {
+      "name": "avatarFadeInline",
+      "rva": 221610736,
+      "bytes": "207401bd59d7ee9768b643f9c80a00b4"
+    },
+    {
+      "name": "avatarFadeRecalculate",
+      "rva": 217112664,
+      "bytes": "fe0f1ef8f44f01a9e84504b0086d7f39"
+    },
+    {
+      "name": "avatarFadeCombine",
+      "rva": 217112688,
+      "bytes": "006c41bd017441bd08ec45390020211e"
+    }
+  ],
+  "avatarSwitch": [
+    {
+      "name": "avatarSwitchCheck",
+      "rva": 83361312,
+      "bytes": "ff8303d1ea3300fde923076dfd7b08a9"
+    },
+    {
+      "name": "avatarSwitchFlag",
+      "rva": 174688964,
+      "bytes": "000a0036fa8905b048d341f9fd090036"
+    },
+    {
+      "name": "avatarSwitchCooldown",
+      "rva": 174689292,
+      "bytes": "09c291521c6969f898546995fc1100b4"
+    },
+    {
+      "name": "avatarSwitchMessage",
+      "rva": 174700728,
+      "bytes": "fe0f1ef8f44f01a993a205d068067639"
+    },
+    {
+      "name": "avatarSwitchRequest",
+      "rva": 70976940,
+      "bytes": "ff8302d1fd7b04a9fc6f05a9fa6706a9"
+    },
+    {
+      "name": "avatarSwitchRate",
+      "rva": 166672692,
+      "bytes": "61ce41bd0040621e0038211e01ed46bd"
+    },
+    {
+      "name": "switchTraceUi",
+      "rva": 292801072,
+      "bytes": "ffc300d1fe7f01a9f44f02a9c80102f0"
+    },
+    {
+      "name": "switchTraceData",
+      "rva": 70981468,
+      "bytes": "ffc301d1fd7b01a9fc6f02a9fa6703a9"
+    },
+    {
+      "name": "switchTraceCurrent",
+      "rva": 132542060,
+      "bytes": "fe0f1ff828cb0690e10300aa08994539"
+    },
+    {
+      "name": "switchTraceTarget",
+      "rva": 70981468,
+      "bytes": "ffc301d1fd7b01a9fc6f02a9fa6703a9"
+    },
+    {
+      "name": "switchTraceSend",
+      "rva": 71942408,
+      "bytes": "ea0f1bfce923016dfe5f02a9f65703a9"
+    },
+    {
+      "name": "switchTraceToast",
+      "rva": 133776720,
+      "bytes": "fe57bea9f44f01a988be06f009c206b0"
+    },
+    {
+      "name": "switchTraceInput",
+      "rva": 71025492,
+      "bytes": "ff0301d1fe5f01a9f65702a9f44f03a9"
+    },
+    {
+      "name": "switchTraceResponse",
+      "rva": 215898392,
+      "bytes": "fe57bea9f44f01a9346904b0f30300aa"
+    }
+  ],
+  "regionUnlock": [
+    {
+      "name": "regionUnlockSetLocal",
+      "rva": 71557036,
+      "bytes": "ff4302d1fe2b00f9f85f06a9f65707a9"
+    }
+  ],
+  "data": {
+    "singletonRoot": 360534944,
+    "graphicsFpsSlot": 359084760,
+    "vulkanResolverSlot": 366494304,
+    "engineOutputScreen": 366526120,
+    "readyFlag": 360535940
+  }
+}

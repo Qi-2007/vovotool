@@ -23,20 +23,21 @@ public final class XposedEntry implements IXposedHookLoadPackage {
             else XposedBridge.log("vovotool: system frame rate hook skipped on non-HyperOS");
             return;
         }
-        if(!Settings.GAME.equals(load.packageName) || !Settings.GAME.equals(load.processName))return;
+        if(!Settings.isGame(load.packageName) || !Settings.isGame(load.processName))return;
         XposedHelpers.findAndHookMethod(Application.class,"attach",Context.class,new XC_MethodHook(){
             @Override protected void afterHookedMethod(MethodHookParam param) {
                 if(installed)return;
                 Context context=(Context)param.args[0];
                 try {
-                    PackageInfo info=context.getPackageManager().getPackageInfo(Settings.GAME,0);
+                    PackageInfo info=context.getPackageManager().getPackageInfo(load.packageName,0);
                     if(!Settings.VERSION.equals(info.versionName)) {
-                        XposedBridge.log("vovotool: unsupported game version "+info.versionName);
+                        XposedBridge.log("vovotool: unsupported game version "+info.versionName+" ("+load.packageName+")");
                         Bundle report=new Bundle();report.putIntArray("state",new int[]{-10});
                         context.getContentResolver().call(Settings.URI,"report",null,report);return;
                     }
-                    NativeBridge.load(context);GameConfiguration.load(context);installJavaHooks(context.getClassLoader());QrLoginBridge.install(context.getClassLoader());installed=true;
-                    XposedBridge.log("vovotool: module loaded for "+info.versionName);
+                    NativeBridge.load(context);GameConfiguration.load(context);installJavaHooks(context.getClassLoader());installed=true;
+                    if(Settings.GAME.equals(load.packageName))QrLoginBridge.install(context.getClassLoader());
+                    XposedBridge.log("vovotool: module loaded for "+load.packageName+" "+info.versionName);
                 } catch(Throwable e) { XposedBridge.log(e); }
             }
         });
@@ -57,7 +58,10 @@ public final class XposedEntry implements IXposedHookLoadPackage {
         Class<?> gameActivity=XposedHelpers.findClass("com.miHoYo.GetMobileInfo.MainActivity",loader);
         XposedBridge.hookMethod(inheritedMethod(gameActivity,"dispatchTouchEvent",MotionEvent.class),new XC_MethodHook(){
             @Override protected void beforeHookedMethod(MethodHookParam p){
-                if(CaptureController.onTouch((Activity)p.thisObject,(MotionEvent)p.args[0]))p.setResult(true);
+                MotionEvent ev=(MotionEvent)p.args[0];
+                MotionEvent touch=CaptureController.mouseToTouch(ev);
+                if(touch!=null){p.args[0]=touch;return;}   // 替换成触摸事件，交给游戏正常分发
+                if(CaptureController.onTouch((Activity)p.thisObject,ev))p.setResult(true);
             }
         });
         XposedBridge.hookMethod(inheritedMethod(gameActivity,"onWindowFocusChanged",boolean.class),new XC_MethodHook(){
@@ -66,7 +70,7 @@ public final class XposedEntry implements IXposedHookLoadPackage {
         XposedHelpers.findAndHookMethod(Activity.class,"onResume",new XC_MethodHook(){
             @Override protected void afterHookedMethod(MethodHookParam p){
                 Activity a=(Activity)p.thisObject;
-                if(Settings.GAME.equals(a.getPackageName()) && a.getClass().getName().contains("MainActivity"))CaptureController.connect(a);
+                if(Settings.isGame(a.getPackageName()) && a.getClass().getName().contains("MainActivity"))CaptureController.connect(a);
             }
         });
         XposedHelpers.findAndHookMethod(Activity.class,"onDestroy",new XC_MethodHook(){

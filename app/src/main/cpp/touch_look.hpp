@@ -30,9 +30,11 @@ void touchRotateHook(void* self,float x,float y,void* method){
     originalTouchRotate(self,x,y,method);
 }
 void installTouchLook(P address){
-    unsigned char bytes[16]{};
-    if(!readMemory(address+profile::touchRotate,bytes,16)||
-       std::memcmp(bytes,profile::touchPins[0].bytes,16)){touchLookStatus=-1;return;}
+    for(const auto& pin:profile::touchPins){
+        unsigned char bytes[16]{};
+        if(!readMemory(address+pin.rva,bytes,16)||std::memcmp(bytes,pin.bytes,16)){touchLookStatus=-1;return;}
+    }
+    if(!profile::touchRotate){touchLookStatus=-1;return;}
     if(hookFunction((void*)(address+profile::touchRotate),(void*)touchRotateHook,(void**)&originalTouchRotate)){
         touchLookStatus=-2;return;
     }

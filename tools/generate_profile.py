@@ -1,5 +1,5 @@
 from pathlib import Path
-import hashlib,json
+import hashlib,json,sys
 ROOT=Path(__file__).resolve().parents[1]
 research=ROOT.parent/'android-input-research'
 library=research/'libyuanshen.so'
@@ -101,6 +101,12 @@ for row in switches:text+='{0x%x,{%s}},\n'%(row['rva'],','.join('0x'+row['bytes'
 text+='};\ninline constexpr Pin regionUnlockPins[]={\n'
 for row in regions:text+='{0x%x,{%s}},\n'%(row['rva'],','.join('0x'+row['bytes'][i:i+2] for i in range(0,32,2)))
 text+='};\n}\n'
-p=ROOT/'app/src/main/cpp/profile.hpp';p.parent.mkdir(parents=True,exist_ok=True);p.write_text(text)
+p=ROOT/'app/src/main/cpp/profile.hpp'
+if p.is_file() and '--force' not in sys.argv:
+    sys.exit('Refusing to overwrite the checked-in profile.hpp without --force. '
+             'This generator uses a built-in address table that may be stale; '
+             'the checked-in profile.hpp is authoritative for builds. '
+             'Pass --force only when intentionally retargeting a new game version.')
+p.parent.mkdir(parents=True,exist_ok=True);p.write_text(text)
 (ROOT/'profile.json').write_text(json.dumps({'version':'7.2.0_48751704_49008628','arch':'arm64-v8a','functions':rows,'graphics':graphics,'photo':photos,'look':looks,'touch':touches,'mapMouse':map_mouse,'teamLoading':teams,'avatarFade':fades,'avatarSwitch':switches,'regionUnlock':regions},indent=2))
 print('Generated version-specific profile')

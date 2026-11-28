@@ -1,1 +1,1 @@
-<resources><string-array name="xposed_scope"><item>com.miHoYo.Yuanshen</item><item>com.miui.powerkeeper</item></string-array></resources>
+<resources><string-array name="xposed_scope"><item>com.miHoYo.Yuanshen</item><item>com.miHoYo.GenshinImpact</item><item>com.miui.powerkeeper</item></string-array></resources>
